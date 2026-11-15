@@ -8,14 +8,14 @@ interface PillScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   medications: Medication[];
-  onVerifyMedicine: (med: Medication, notes: string) => void;
+  onConfirmDose: (med: Medication, notes: string) => void;
 }
 
 export const PillScannerModal: React.FC<PillScannerModalProps> = ({
   isOpen,
   onClose,
   medications,
-  onVerifyMedicine,
+  onConfirmDose,
 }) => {
   const [cameraActive, setCameraActive] = useState(false);
   const [selectedSample, setSelectedSample] = useState<string>('sample-1');
@@ -23,49 +23,38 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
   const [scanResult, setScanResult] = useState<{
     status: 'success' | 'warning' | 'mismatch' | null;
     matchedMed?: Medication;
-    confidence: number;
     detectedText: string;
-    instructions: string;
     warningMessage?: string;
   } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setScanResult(null);
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => stopCamera();
-  }, [isOpen]);
+    if (!isOpen || !navigator.mediaDevices?.getUserMedia) return;
 
-  const startCamera = async () => {
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+    let active = true;
+    let stream: MediaStream | undefined;
+    const video = videoRef.current;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(cameraStream => {
+        stream = cameraStream;
+        if (!active) {
+          cameraStream.getTracks().forEach(track => track.stop());
+          return;
+        }
+        if (video) {
+          video.srcObject = cameraStream;
           setCameraActive(true);
         }
-      }
-    } catch (err) {
-      console.warn('Camera access not granted or unavailable:', err);
-      setCameraActive(false);
-    }
-  };
+      })
+      .catch(err => console.warn('Camera access not granted or unavailable:', err));
 
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setCameraActive(false);
-  };
+    return () => {
+      active = false;
+      stream?.getTracks().forEach(track => track.stop());
+      if (video) video.srcObject = null;
+    };
+  }, [isOpen]);
 
   const handleAnalyze = (sampleOverride?: string) => {
     setIsScanning(true);
@@ -82,9 +71,7 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
         setScanResult({
           status: 'success',
           matchedMed: med,
-          confidence: 98.6,
           detectedText: 'GLYCOMET-GP 1 • Metformin 500mg / Glimepiride 1mg • Exp: 08/2026',
-          instructions: 'Verified! Take 1 tablet with half a glass of water after breakfast.',
         });
       } else if (targetSample === 'sample-2') {
         // Telma 40
@@ -92,9 +79,7 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
         setScanResult({
           status: 'success',
           matchedMed: med,
-          confidence: 99.1,
           detectedText: 'TELMA 40 • Telmisartan IP 40mg • Glenmark Pharma • Batch: GL-921',
-          instructions: 'Verified Blood Pressure tablet. Scheduled for Afternoon (1:30 PM).',
         });
       } else if (targetSample === 'sample-3') {
         // Shelcal 500
@@ -102,18 +87,14 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
         setScanResult({
           status: 'success',
           matchedMed: med,
-          confidence: 97.4,
           detectedText: 'SHELCAL 500 • Calcium Carbonate 500mg + Vit D3 • Torrent',
-          instructions: 'Verified Calcium supplement. Scheduled for Evening with tea/milk.',
         });
       } else {
         // Mismatch / Warning
         setScanResult({
           status: 'warning',
-          confidence: 92.0,
           detectedText: 'UNKNOWN OINTMENT / EXPIRED TABLET • Batch #8812',
-          instructions: 'STOP! This does not match your scheduled prescriptions.',
-          warningMessage: 'This packet does not match any prescribed daily medication. Do not ingest!',
+          warningMessage: 'This scripted sample is flagged. The demo cannot identify or assess a real medicine.',
         });
       }
     }, 1200);
@@ -131,8 +112,8 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
               <Camera className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">AI Medicine Strip Vision Scanner</h2>
-              <p className="text-xs text-slate-400">Point phone camera at tablet strip or select sample below</p>
+              <h2 className="text-xl font-bold text-white">Medicine scan demonstration</h2>
+              <p className="text-xs text-slate-400">Choose a sample to preview the intended flow</p>
             </div>
           </div>
           <button 
@@ -158,9 +139,9 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
               <div className="w-24 h-24 rounded-full bg-slate-800/80 border-2 border-dashed border-amber-500/40 flex items-center justify-center mb-4 text-amber-400 animate-pulse">
                 <Camera className="w-10 h-10" />
               </div>
-              <p className="text-slate-300 font-medium text-lg">Webcam Preview / Simulated Visual Feed</p>
+              <p className="text-slate-300 font-medium text-lg">Webcam preview only</p>
               <p className="text-slate-500 text-sm max-w-sm mt-1">
-                Holding medicine blister pack in front of camera lens for high-resolution OCR analysis.
+                The camera feed is not analyzed. Sample selections below return scripted results.
               </p>
             </div>
           )}
@@ -169,7 +150,7 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
           <div className="absolute inset-8 pointer-events-none border-2 border-amber-400/40 rounded-2xl flex flex-col justify-between p-4">
             <div className="flex justify-between items-center text-xs font-mono text-amber-300 bg-black/60 px-3 py-1 rounded-full w-fit">
               <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-2 animate-ping" />
-              AI VISION OCR SENSOR ACTIVE
+              SAMPLE MODE • NO IMAGE ANALYSIS
             </div>
             <div className="text-center">
               <p className="text-xs font-mono bg-black/60 text-slate-300 px-3 py-1.5 rounded-lg inline-block">
@@ -182,8 +163,8 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
           {isScanning && (
             <div className="absolute inset-0 bg-amber-500/10 backdrop-blur-sm flex flex-col items-center justify-center">
               <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-amber-300 font-bold text-lg">Analyzing Strip with Multimodal Vision...</p>
-              <p className="text-slate-300 text-xs mt-1">Cross-referencing active prescription registry</p>
+              <p className="text-amber-300 font-bold text-lg">Loading sample result…</p>
+              <p className="text-slate-300 text-xs mt-1">This demo does not inspect the camera feed</p>
             </div>
           )}
         </div>
@@ -191,7 +172,7 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
         {/* Quick Sample Selector for Flawless Hackathon Demo */}
         <div className="px-6 py-3 bg-slate-900 border-t border-slate-800">
           <p className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-amber-400" /> Demo Sample Switcher (Quick Testing):
+            <Zap className="w-3.5 h-3.5 text-amber-400" /> Choose a scripted sample (not OCR):
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
@@ -232,27 +213,21 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
                     <h3 className="text-lg font-bold text-emerald-300">
                       {scanResult.matchedMed.name}
                     </h3>
-                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {scanResult.confidence}% Confidence
-                    </span>
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Sample result</span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-0.5 font-mono">
-                    Detected: {scanResult.detectedText}
-                  </p>
-                  <p className="text-sm font-medium text-emerald-200 mt-2 bg-emerald-900/30 p-2.5 rounded-xl border border-emerald-700/30">
-                    💡 <strong>Instructions:</strong> {scanResult.instructions}
-                  </p>
+                  <p className="text-xs text-slate-300 mt-0.5 font-mono">Scripted sample text: {scanResult.detectedText}</p>
+                  <p className="text-sm text-emerald-200 mt-2 bg-emerald-900/30 p-2.5 rounded-xl border border-emerald-700/30">Sample only. Follow your prescription label or ask your pharmacist; this demo cannot identify medicine.</p>
                   <button
                     onClick={() => {
                       if (scanResult.matchedMed) {
-                        onVerifyMedicine(scanResult.matchedMed, scanResult.detectedText);
+                        onConfirmDose(scanResult.matchedMed, scanResult.detectedText);
                         onClose();
                       }
                     }}
                     className="mt-3 w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
                   >
                     <ShieldCheck className="w-5 h-5" />
-                    Confirm & Mark Dose Taken
+                    I have taken this medicine • mark in demo
                   </button>
                 </div>
               </div>
@@ -264,13 +239,13 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-rose-300">Medication Warning / Unrecognized</h3>
                   <p className="text-xs text-slate-300 mt-0.5 font-mono">
-                    Detected: {scanResult.detectedText}
+                    Scripted sample text: {scanResult.detectedText}
                   </p>
                   <p className="text-sm font-medium text-rose-200 mt-2 bg-rose-900/30 p-2.5 rounded-xl border border-rose-700/30">
                     ⚠️ {scanResult.warningMessage}
                   </p>
                   <p className="text-xs text-rose-400 mt-2">
-                    Caregiver alert has been triggered automatically for safety.
+                    This scripted sample does not send an alert. Ask a caregiver or pharmacist if you are unsure about a medicine.
                   </p>
                 </div>
               </div>
@@ -293,7 +268,7 @@ export const PillScannerModal: React.FC<PillScannerModalProps> = ({
             ) : (
               <>
                 <Camera className="w-5 h-5" />
-                Scan Current Frame
+                Show selected sample result
               </>
             )}
           </button>

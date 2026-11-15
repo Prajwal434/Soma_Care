@@ -222,7 +222,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
     handleProcessUtterance(text);
   };
 
-  const handleVerifiedViaVision = (med: Medication, notes: string) => {
+  const handleConfirmDoseFromDemo = (med: Medication, notes: string) => {
     const updated = medications.map(m => 
       m.id === med.id ? { ...m, takenToday: true, takenAt: 'Just now' } : m
     );
@@ -233,14 +233,13 @@ export const ElderMode: React.FC<ElderModeProps> = ({
       timestamp: 'Just now',
       medicationName: `${med.name} (${med.timeSlot})`,
       status: 'taken',
-      notes: `Verified via AI Multimodal Camera OCR. Drug confirmed: ${notes}`,
-      verificationMethod: 'vision',
-      moodDetected: 'cheerful',
+      notes: `User confirmed after reviewing a scripted sample. No camera image or medicine was analyzed. ${notes}`,
+      verificationMethod: 'manual',
     };
     onAddLog(newLog);
 
-    const speech = `Verified ${med.name}! Take one tablet with water now. I have notified ${profile.caregiverName} on WhatsApp.`;
-    setAiSpeechResponse(`✅ Camera Verified: ${med.name}. Marked as taken.`);
+    const speech = `You marked ${med.name} as taken. Follow the instructions on your prescription.`;
+    setAiSpeechResponse(`Sample reviewed. You marked ${med.name} as taken.`);
     handleSpeak(speech);
   };
 
@@ -420,13 +419,13 @@ export const ElderMode: React.FC<ElderModeProps> = ({
                 <Camera className="w-5 h-5 text-amber-400" />
                 Check my medicine
               </span>
-              <span className="text-sm text-amber-400 font-normal">Use camera</span>
+              <span className="text-sm text-amber-400 font-normal">Sample demo</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* The Commerce Engine: Voice Auto-Refill Card */}
+      {/* Local demo refill choice */}
       {activeRefillMedId && (
         <div className="bg-gradient-to-r from-emerald-950/80 to-teal-950/80 border-2 border-emerald-500/50 rounded-3xl p-6 sm:p-7 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-5">
           <div className="flex items-start gap-4">
@@ -435,23 +434,23 @@ export const ElderMode: React.FC<ElderModeProps> = ({
             </div>
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold mb-1">
-                ⭐ Voice Auto-Refill Trigger (1mg Partner)
+                Demo refill choice • no pharmacy connected
               </div>
               <h3 className="text-xl sm:text-2xl font-bold text-white">
-                Only 3 tablets left of Glycomet-GP 1!
+                {medications.find(med => med.id === activeRefillMedId)?.remainingPills ?? 0} tablets left of {medications.find(med => med.id === activeRefillMedId)?.name ?? 'your medicine'}
               </h3>
               <p className="text-slate-300 text-base mt-1">
-                Say <strong className="text-emerald-300 font-bold">&ldquo;Yes, order it&rdquo;</strong> into the mic or click below. We will deliver a 30-day supply (₹245) from Tata 1mg to Lucknow tomorrow.
+                Say <strong className="text-emerald-300 font-bold">&ldquo;Yes, add demo choice&rdquo;</strong> or click below. This only saves a sample choice on this page; no pharmacy order or payment is made.
               </p>
             </div>
           </div>
 
           <div className="flex sm:flex-col gap-3 w-full sm:w-auto shrink-0">
             <button
-              onClick={() => handleManualAction("Yes please order the Glycomet refill from 1mg")}
+              onClick={() => handleManualAction("Yes, add the demo refill choice")}
               className="flex-1 sm:flex-none px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-2xl text-base shadow-lg shadow-emerald-500/25 transition-all text-center"
             >
-              Order Refill (₹245)
+              Save demo refill choice
             </button>
             <button
               onClick={() => setActiveRefillMedId(null)}
@@ -465,6 +464,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 
       {/* Today's Medication Visual Timeline */}
       <div className="space-y-4">
+        <p className="rounded-xl border border-amber-500/30 bg-amber-950/30 p-4 text-sm text-amber-100">Sample schedule for demonstration. Check your own prescription and ask your clinician or pharmacist before changing a medicine or dose.</p>
         <h2 className="text-2xl font-bold text-white flex items-center gap-2.5">
           <Clock className="w-6 h-6 text-amber-400" />
           Today&apos;s Medicine Schedule for Babuji
@@ -509,14 +509,13 @@ export const ElderMode: React.FC<ElderModeProps> = ({
                         timestamp: 'Just now',
                         medicationName: med.name,
                         status: 'taken',
-                        notes: `Manually verified: Babuji took ${med.name}.`,
+                        notes: `Senior marked ${med.name} as taken. This is self-reported, not independently verified.`,
                         verificationMethod: 'manual',
-                        moodDetected: 'cheerful',
                       };
                       onAddLog(newLog);
                       handleSpeak(`Marked ${med.name} as taken.`);
                     }}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition-all"
+                    className="min-h-12 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition-all"
                   >
                     Mark Taken
                   </button>
@@ -532,7 +531,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
                 </p>
                 {med.takenToday && (
                   <p className="text-emerald-400 text-xs font-semibold">
-                    ✓ Verified taken at {med.takenAt}
+                    ✓ Marked taken at {med.takenAt}
                   </p>
                 )}
               </div>
@@ -554,9 +553,9 @@ export const ElderMode: React.FC<ElderModeProps> = ({
           <div>
             <h3 className="text-xl font-bold text-white">Dr. Meera Kapoor</h3>
             <p className="text-base text-slate-300">Cardiology • City Care Clinic, Lucknow</p>
-            <p className="text-sm text-slate-400 mt-1">Rahul has been notified. Bring your medicine list.</p>
+            <p className="text-sm text-slate-400 mt-1">Sample appointment. No reminder has been sent. Bring your medicine list.</p>
           </div>
-          <button onClick={() => handleSpeak('Your next doctor appointment is Thursday, November 19 at 11:30 in the morning with Dr. Meera Kapoor at City Care Clinic. Rahul has been notified.')} className="min-h-14 px-5 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-base font-bold flex items-center justify-center gap-2">
+          <button onClick={() => handleSpeak('Your sample appointment is Thursday, November 19 at 11:30 in the morning with Dr. Meera Kapoor at City Care Clinic. No reminder has been sent.')} className="min-h-14 px-5 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-base font-bold flex items-center justify-center gap-2">
             <Volume2 className="w-5 h-5" /> Hear appointment
           </button>
         </div>
@@ -567,7 +566,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         medications={medications}
-        onVerifyMedicine={handleVerifiedViaVision}
+        onConfirmDose={handleConfirmDoseFromDemo}
       />
 
       {/* Emergency SOS Modal */}
@@ -577,14 +576,12 @@ export const ElderMode: React.FC<ElderModeProps> = ({
             <div className="w-20 h-20 rounded-full bg-rose-500/20 border-2 border-rose-500 text-rose-400 flex items-center justify-center mx-auto animate-bounce">
               <PhoneCall className="w-10 h-10" />
             </div>
-            <h3 className="text-2xl font-black text-white">Emergency SOS Triggered!</h3>
-            <p className="text-rose-200 text-sm">
-              Connecting directly to <strong>{profile.caregiverName}</strong> ({profile.caregiverPhone}) and Lucknow emergency services.
-            </p>
+            <h3 className="text-2xl font-black text-white">Emergency action demo</h3>
+            <p className="text-rose-200 text-sm">This prototype cannot contact <strong>{profile.caregiverName}</strong> or emergency services. Call your local emergency number directly if immediate help is needed.</p>
             <div className="bg-rose-900/60 p-4 rounded-2xl text-xs text-rose-100 font-mono text-left space-y-1">
-              <p>✓ High-priority WhatsApp Alert sent with GPS location</p>
-              <p>✓ Automated voice dispatch call dialing...</p>
-              <p>✓ Neighbor alert: Mr. Gupta notified</p>
+              <p>Demo only • No message was sent</p>
+              <p>No call was placed</p>
+              <p>No location was accessed or shared</p>
             </div>
             <button
               onClick={() => setEmergencyModalOpen(false)}

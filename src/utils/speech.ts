@@ -1,9 +1,37 @@
 'use client';
 
+interface SpeechRecognitionAlternativeLike { transcript: string }
+interface SpeechRecognitionResultLike extends ArrayLike<SpeechRecognitionAlternativeLike> { isFinal: boolean }
+interface SpeechRecognitionResultEventLike {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+interface SpeechRecognitionErrorEventLike { error?: string; message?: string }
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+interface SpeechRecognitionConstructor { new(): SpeechRecognitionLike }
+interface SpeechWindow extends Window {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+}
+
 // Speech synthesis and recognition utility with robust fallbacks
 export class SpeechService {
   private static synth: SpeechSynthesis | null = null;
-  private static recognition: any = null;
+
+  private static getRecognitionConstructor(): SpeechRecognitionConstructor | undefined {
+    if (typeof window === 'undefined') return undefined;
+    const speechWindow = window as SpeechWindow;
+    return speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+  }
 
   static init() {
     if (typeof window !== 'undefined') {
@@ -11,21 +39,6 @@ export class SpeechService {
         SpeechService.synth = window.speechSynthesis;
       }
       
-      const SpeechRecognition = 
-        (window as any).SpeechRecognition || 
-        (window as any).webkitSpeechRecognition;
-      
-      if (SpeechRecognition) {
-        try {
-          const rec = new SpeechRecognition();
-          rec.continuous = false;
-          rec.interimResults = true;
-          rec.lang = 'en-IN'; // Indian English for authentic pronunciation and recognition
-          SpeechService.recognition = rec;
-        } catch (e) {
-          console.warn('SpeechRecognition initialization error:', e);
-        }
-      }
     }
   }
 
@@ -95,7 +108,7 @@ export class SpeechService {
 
   static listen(
     onResult: (text: string, isFinal: boolean) => void,
-    onError: (err: any) => void,
+    onError: (err: unknown) => void,
     onEnd: () => void,
     continuous = false
   ): { stop: () => void } {
@@ -103,9 +116,7 @@ export class SpeechService {
       return { stop: () => {} };
     }
 
-    const SpeechRecognition = 
-      (window as any).SpeechRecognition || 
-      (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = SpeechService.getRecognitionConstructor();
 
     if (!SpeechRecognition) {
       onError('Speech recognition not supported in this browser');
@@ -118,7 +129,7 @@ export class SpeechService {
       recognition.interimResults = true;
       recognition.lang = 'en-IN';
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionResultEventLike) => {
         let interim = '';
         let final = '';
 
@@ -137,7 +148,7 @@ export class SpeechService {
         }
       };
 
-      recognition.onerror = (e: any) => {
+      recognition.onerror = (e: SpeechRecognitionErrorEventLike) => {
         console.warn('SpeechRecognition error:', e);
         onError(e);
       };
@@ -152,7 +163,9 @@ export class SpeechService {
         stop: () => {
           try {
             recognition.stop();
-          } catch (e) {}
+          } catch {
+            // A recognition session may already have ended.
+          }
         }
       };
     } catch (err) {

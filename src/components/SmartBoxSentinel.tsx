@@ -6,12 +6,9 @@ import {
   ShieldAlert, 
   CheckCircle2, 
   AlertTriangle, 
-  PhoneCall, 
   Sparkles, 
-  RefreshCw, 
   Layers, 
   MessageSquare,
-  Play,
   RotateCcw
 } from 'lucide-react';
 import { Medication, AdherenceLog, SeniorProfile } from '../types';
@@ -50,8 +47,13 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
 
   useEffect(() => {
     SpeechService.init();
+    const video = videoRef.current;
     return () => {
-      stopCamera();
+      const stream = video?.srcObject;
+      if (stream instanceof MediaStream) {
+        stream.getTracks().forEach(track => track.stop());
+        if (video) video.srcObject = null;
+      }
     };
   }, []);
 
@@ -89,7 +91,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
       setIsAnalyzing(false);
 
       if (scenario === 'safe_single') {
-        const speech = "One tablet detected, Babuji. Safe to take with water!";
+        const speech = "SomaBox demo: one scheduled dose sample. This is not a physical pill check. Follow your prescription.";
         SpeechService.speak(speech);
 
         const newLog: AdherenceLog = {
@@ -97,9 +99,8 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
           timestamp: 'Just now',
           medicationName: 'Glycomet-GP 1 (Morning)',
           status: 'taken',
-          notes: 'SomaBox Micro-Cam verified: Slot 1 (Morning) opened. Exactly 1 tablet extracted. Ingestion gesture verified.',
-          verificationMethod: 'vision',
-          moodDetected: 'cheerful',
+          notes: 'Simulated safe-single scenario. No camera sensing, pill counting, or ingestion verification occurs.',
+          verificationMethod: 'manual',
         };
         onAddLog(newLog);
       } else if (scenario === 'hazard_double') {
@@ -107,7 +108,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
         SpeechService.speak(speech);
 
         setAlertDispatched(
-          `🚨 CRITICAL WHATSAPP TO ${profile.caregiverName} (+91 98450 12345): "SomaBox detected Babuji lifted 2 pills of Glycomet from Slot 1 (overdose hazard). Voice intercept active on speaker."`
+          `DEMO ALERT PREVIEW for ${profile.caregiverName}: simulated multiple-pill scenario. No message was sent.`
         );
 
         const newLog: AdherenceLog = {
@@ -115,9 +116,8 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
           timestamp: 'Just now',
           medicationName: 'Glycomet-GP 1 (Double Dose Hazard)',
           status: 'warning',
-          notes: 'CRITICAL SAFETY INTERCEPT: SomaBox Micro-Cam detected 2 tablets in hand from Slot 1. Spoken voice alert fired. Primary caretaker alerted via WhatsApp.',
-          verificationMethod: 'vision',
-          moodDetected: 'confused',
+          notes: 'Simulated multiple-pill scenario. No camera detection or caregiver notification occurs.',
+          verificationMethod: 'manual',
         };
         onAddLog(newLog);
       } else if (scenario === 'hazard_wrong_slot') {
@@ -125,7 +125,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
         SpeechService.speak(speech);
 
         setAlertDispatched(
-          `⚠️ WARNING WHATSAPP TO ${profile.caregiverName}: "SomaBox detected Babuji opened Slot 4 (Night Cholesterol) at 10:55 AM. Voice redirection active."`
+          `DEMO ALERT PREVIEW for ${profile.caregiverName}: simulated wrong-compartment scenario. No message was sent.`
         );
 
         const newLog: AdherenceLog = {
@@ -133,9 +133,8 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
           timestamp: 'Just now',
           medicationName: 'Wrong Compartment Opened (Night)',
           status: 'warning',
-          notes: 'SAFETY INTERCEPT: Babuji opened Night compartment during Morning schedule. Micro-Cam intercepted before ingestion.',
-          verificationMethod: 'vision',
-          moodDetected: 'confused',
+          notes: 'Simulated wrong-compartment scenario. No hardware sensor or ingestion detection is connected.',
+          verificationMethod: 'manual',
         };
         onAddLog(newLog);
       }
@@ -163,7 +162,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
           </p>
         </div>
 
-        <button
+                  <button
           onClick={() => {
             if (useRealWebcam) stopCamera();
             else startCamera();
@@ -348,17 +347,17 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
                       activeScenario === 'safe_single' ? 'text-emerald-400' : 'text-rose-400'
                     }`}>
                       {activeScenario === 'safe_single' 
-                        ? '✓ Safe Action: 1 Tablet Extracted (Verified)' 
+                        ? 'Demo: scheduled compartment sample'
                         : activeScenario === 'hazard_double'
-                        ? '🚨 OVERDOSE INTERCEPT: 2 Tablets Lifted from Slot 1!'
-                        : '⚠️ MISMATCH: Night Compartment Opened in Morning!'}
+                        ? 'Demo: multiple-pill warning sample'
+                        : 'Demo: wrong-compartment warning sample'}
                     </h4>
                     <p className="text-xs text-slate-300">
                       {activeScenario === 'safe_single'
-                        ? 'Visual neural net verified exactly 1 oval tablet on palm. Swallowing gesture registered.'
+                        ? 'Simulated safe-single sample. This prototype does not count pills or register swallowing.'
                         : activeScenario === 'hazard_double'
-                        ? 'SomaBox speaker immediately ordered Babuji to put 1 tablet back. Hypoglycemia prevented.'
-                        : 'Babuji attempted to take Night cholesterol med instead of Morning sugar tablet.'}
+                        ? 'Simulated multiple-pill sample. No camera detection or live warning is connected.'
+                        : 'Simulated wrong-compartment sample. No physical tray sensor is connected.'}
                     </p>
                   </div>
                 </div>
@@ -374,14 +373,14 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
                   }}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 rounded-xl shrink-0 transition-all"
                 >
-                  🔊 Replay Voice Alert
+                  🔊 Replay sample voice
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Instant Primary Caretaker WhatsApp Dispatch Banner */}
+        {/* Clearly labeled local alert preview */}
         {alertDispatched && (
           <div className="bg-rose-950/90 border-t-2 border-rose-500 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -390,7 +389,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
               </div>
               <div>
                 <span className="text-[11px] font-black uppercase tracking-wider text-rose-300">
-                  Caregiver Emergency Dispatch Engine
+                  Demo caregiver alert preview • not sent
                 </span>
                 <p className="text-xs sm:text-sm text-white font-mono mt-0.5">
                   {alertDispatched}
@@ -398,7 +397,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
               </div>
             </div>
             <span className="px-3 py-1 rounded-full bg-rose-500 text-slate-950 font-black text-xs shrink-0">
-              DISPATCHED
+              NOT SENT
             </span>
           </div>
         )}
@@ -413,7 +412,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
               Judges Test Scenarios (Run Live Physical Box Tests)
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Simulate what happens when the camera scans Babuji interacting with the physical pill box:
+              Run scripted tray scenarios; no camera scan or physical tray is connected:
             </p>
           </div>
           <button
@@ -442,7 +441,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
             </div>
             <h4 className="text-sm font-bold text-white">Babuji takes 1 Morning Pill</h4>
             <p className="text-[11px] text-slate-400 mt-1">
-              Slot 1 opens, AI counts 1 tablet on palm. Reassures Babuji & logs dose.
+              Simulates a scheduled compartment opening and adds a local sample event.
             </p>
           </button>
 
@@ -462,7 +461,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
             </div>
             <h4 className="text-sm font-bold text-white">Babuji pulls out 2 Pills!</h4>
             <p className="text-[11px] text-slate-400 mt-1">
-              AI counts 2 pills. Instant loud voice alarm: "That's wrong, put one back!" + WhatsApp alert.
+              Demo: show the voice warning and caregiver alert preview for a simulated two-pill event.
             </p>
           </button>
 
@@ -482,7 +481,7 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
             </div>
             <h4 className="text-sm font-bold text-white">Opens Night Box at 10 AM</h4>
             <p className="text-[11px] text-slate-400 mt-1">
-              AI spots invalid compartment. Warns Babuji before he swallows his sleeping tablet.
+              Simulates an invalid compartment warning; no sensor checks a real tray.
             </p>
           </button>
         </div>

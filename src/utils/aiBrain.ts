@@ -5,7 +5,7 @@ import { getBoxSlot, getNextScheduledMedication } from './demoSetup';
 export interface AIResponse {
   spokenText: string;
   displayText: string;
-  actionTaken?: 'med_taken' | 'double_dose_blocked' | 'refill_confirmed' | 'refill_inquiry' | 'next_medication' | 'box_location' | 'escalation_alert' | 'scan_prompt';
+  actionTaken?: 'med_taken' | 'double_dose_warning' | 'refill_confirmed' | 'refill_inquiry' | 'next_medication' | 'box_location' | 'escalation_alert' | 'scan_prompt';
   affectedMedId?: string;
   newLog?: AdherenceLog;
   newOrder?: PharmacyOrder;
@@ -17,15 +17,14 @@ function buildDoubleDoseResponse(morningMed: Medication): AIResponse {
     timestamp: 'Just now',
     medicationName: morningMed.name,
     status: 'warning',
-    notes: `CRITICAL SAFETY INTERCEPT: Babuji attempted to take ${morningMed.name} again. Blocked to prevent hypoglycemia. Caregiver notified.`,
+    notes: `Demo warning: the saved list says ${morningMed.name} was marked taken. The app cannot physically prevent another dose or notify a caregiver.`,
     verificationMethod: 'voice',
-    moodDetected: 'confused',
   };
 
   return {
-    spokenText: `Wait, Babuji! Please do not take that pill! You already took your morning ${morningMed.name} at ${morningMed.takenAt || '9:12 AM'}. Taking another can drop your blood sugar dangerously low. Please take a sip of water and rest.`,
-    displayText: `⚠️ SAFETY LOCK ENGAGED: Blocked duplicate dose of ${morningMed.name}. Morning dose was already logged at ${morningMed.takenAt || '9:12 AM'}. Caregiver notified via WhatsApp.`,
-    actionTaken: 'double_dose_blocked',
+    spokenText: `Your saved list says you marked ${morningMed.name} taken at ${morningMed.takenAt || '9:12 AM'}. Please check your medicine record and contact your caregiver or pharmacist if you are unsure. This app cannot stop a physical dose.`,
+    displayText: `Dose check: ${morningMed.name} is marked taken in the saved list. No caregiver message was sent.`,
+    actionTaken: 'double_dose_warning',
     affectedMedId: morningMed.id,
     newLog,
   };
@@ -56,7 +55,7 @@ export function processSeniorUtterance(
     if (morningMed?.takenToday) return buildDoubleDoseResponse(morningMed);
   }
 
-  // 1. Check if agreeing to an active auto-refill prompt (COMMERCE ENGINE HOOK)
+  // 1. Add a local demo refill record only after explicit confirmation.
   if (
     activeRefillPromptMedId && 
     /\b(yes|yeah|haan|theek hai|kharid do|sure|go ahead|please order|order it|place the order|kar do)\b/i.test(lower)
@@ -70,9 +69,9 @@ export function processSeniorUtterance(
         quantity: '1 Strip (30 Tablets)',
         price: med.price,
         orderedAt: 'Just now',
-        status: 'Processing',
+        status: 'Demo only',
         partner: med.pharmacyPartner as PharmacyOrder['partner'],
-        paidBy: 'Auto-charged to Rahul Sharma (HDFC Credit Card)',
+        paidBy: 'Local demo record • no payment taken',
       };
 
       const newLog: AdherenceLog = {
@@ -80,14 +79,13 @@ export function processSeniorUtterance(
         timestamp: 'Just now',
         medicationName: `${med.name} Auto-Refill`,
         status: 'refill_ordered',
-        notes: `Voice-authorized reorder dispatched via ${med.pharmacyPartner} for ₹${med.price}. Caregiver card billed.`,
+        notes: `Senior confirmed a demo refill choice for ${med.name}. No pharmacy request or payment was made.`,
         verificationMethod: 'voice',
-        moodDetected: 'cheerful',
       };
 
       return {
-        spokenText: `Order confirmed, Babuji! I have placed an order for ${med.name} through ${med.pharmacyPartner} for rupees ${med.price}. A WhatsApp update has been sent to Rahul. Delivery tomorrow by 2 PM.`,
-        displayText: `✅ Refill Ordered: ${med.name} (30 tabs) via ${med.pharmacyPartner} (₹${med.price}). Charged to Rahul Sharma. Delivery by tomorrow 2 PM.`,
+        spokenText: `I saved your demo refill choice for ${med.name}. No pharmacy order or payment was made. Please ask your caregiver to arrange the refill.`,
+        displayText: `Demo refill choice saved for ${med.name}. No order or payment was made.`,
         actionTaken: 'refill_confirmed',
         affectedMedId: med.id,
         newLog,
@@ -149,8 +147,8 @@ export function processSeniorUtterance(
     lower.includes('identify') || lower.includes('color')
   ) {
     return {
-      spokenText: `Let me help you check, Babuji. Hold the medicine strip or tablet up to the camera screen so I can verify the name and dosage for you.`,
-      displayText: `🔍 Multimodal Vision Helper: Hold the medicine packet to your camera or tap 'Scan Medicine Strip' below.`,
+      spokenText: `I can show a sample medicine-checking flow, but I cannot identify a real tablet. Please read the label or ask your caregiver or pharmacist.`,
+      displayText: `Sample scan demo only. The camera feed is not analyzed and cannot identify a medicine.`,
       actionTaken: 'scan_prompt',
     };
   }
@@ -168,14 +166,13 @@ export function processSeniorUtterance(
       timestamp: 'Just now',
       medicationName: pendingMed.name,
       status: 'taken',
-      notes: `Verbally verified: ${pendingMed.name} taken with water. Senior confirmed completion.`,
+      notes: `The senior reported taking ${pendingMed.name}. This is self-reported and was not independently verified.`,
       verificationMethod: 'voice',
-      moodDetected: 'cheerful',
     };
 
     return {
-      spokenText: `Shabash, Babuji! I have recorded that you took your ${pendingMed.name}. Your adherence score is now 96 percent. Rahul will be so happy to see this update!`,
-      displayText: `🎉 Dose Verified & Logged: ${pendingMed.name} marked as taken. Live dashboard and family WhatsApp heartbeat updated!`,
+      spokenText: `I recorded that you took ${pendingMed.name}. Please follow the instructions from your clinician.`,
+      displayText: `Self-reported dose recorded for ${pendingMed.name}. No family message was sent.`,
       actionTaken: 'med_taken',
       affectedMedId: pendingMed.id,
       newLog,
@@ -193,14 +190,13 @@ export function processSeniorUtterance(
       timestamp: 'Just now',
       medicationName: 'Health Symptom Logged',
       status: 'warning',
-      notes: `Symptom reported: "${input}". Voice sentiment: Distressed/Mild Discomfort. Instant alert sent to Rahul Sharma.`,
+      notes: `The senior reported: "${input}". This prototype does not assess severity or send an alert.`,
       verificationMethod: 'voice',
-      moodDetected: 'tired',
     };
 
     return {
-      spokenText: `I understand, Babuji. Please sit down comfortably and do not strain yourself. I have immediately alerted Rahul and flagged your symptom on his dashboard. If it gets worse, tap the red SOS button.`,
-      displayText: `🚨 Health Alert Logged: Reported "${input}". Son Rahul Sharma and Dr. Verma have been notified via priority SMS/WhatsApp.`,
+      spokenText: `I recorded what you said, but I cannot assess symptoms or contact anyone. If you feel in immediate danger, call your local emergency number or ask someone nearby for help.`,
+      displayText: `Symptom note saved locally. No alert or message was sent.`,
       actionTaken: 'escalation_alert',
       newLog,
     };

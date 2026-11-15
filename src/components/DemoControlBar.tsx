@@ -32,7 +32,7 @@ export const DemoControlBar: React.FC<DemoControlBarProps> = ({
         className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all active:scale-95 border border-slate-700"
       >
         <Camera className="w-3.5 h-3.5 text-amber-400" />
-        <span>2. Pill Vision OCR</span>
+        <span>2. Scan sample</span>
       </button>
 
       <button
@@ -40,7 +40,7 @@ export const DemoControlBar: React.FC<DemoControlBarProps> = ({
         className="px-2.5 py-1.5 rounded-xl bg-teal-950/80 hover:bg-teal-900/80 text-teal-300 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all active:scale-95 border border-teal-500/50 ring-1 ring-teal-400/40"
       >
         <Layers className="w-3.5 h-3.5 text-teal-400" />
-        <span>3. SomaBox™ Micro-Cam</span>
+        <span>3. SomaBox demo</span>
       </button>
 
       <button
@@ -48,7 +48,7 @@ export const DemoControlBar: React.FC<DemoControlBarProps> = ({
         className="px-2.5 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all active:scale-95 border border-rose-500/40"
       >
         <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-        <span>4. Double-Dose Lock</span>
+        <span>4. Dose warning demo</span>
       </button>
 
       <button
@@ -56,7 +56,7 @@ export const DemoControlBar: React.FC<DemoControlBarProps> = ({
         className="px-2.5 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all active:scale-95 border border-emerald-500/40"
       >
         <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
-        <span>5. Voice Refill (1mg)</span>
+        <span>5. Voice refill demo</span>
       </button>
 
       <button

@@ -35,6 +35,12 @@ export default function Home() {
     setOrders(prev => [newOrder, ...prev]);
   };
 
+  const handleSaveMedication = (medication: Medication) => {
+    setMedications(previous => previous.some(existing => existing.id === medication.id)
+      ? previous.map(existing => existing.id === medication.id ? medication : existing)
+      : [...previous, medication]);
+  };
+
   const handleTriggerRefillFromCaregiver = (medId: string) => {
     const med = medications.find(m => m.id === medId);
     if (!med) return;
@@ -46,9 +52,9 @@ export default function Home() {
       quantity: '1 Box (30 Tablets)',
       price: med.price,
       orderedAt: 'Just now',
-      status: 'Processing',
+      status: 'Demo only',
       partner: med.pharmacyPartner as PharmacyOrder['partner'],
-      paidBy: 'Triggered by Caregiver (Rahul Sharma - Auto Pay)',
+      paidBy: 'Local demo record • no payment taken',
     };
 
     const newLog: AdherenceLog = {
@@ -56,20 +62,14 @@ export default function Home() {
       timestamp: 'Just now',
       medicationName: `${med.name} Refill Triggered`,
       status: 'refill_ordered',
-      notes: `Caregiver manually approved 30-day refill via ${med.pharmacyPartner}. Delivery scheduled for Lucknow address.`,
+      notes: `Caregiver selected a demo refill for ${med.name}. No pharmacy request or payment was made.`,
       verificationMethod: 'manual',
-      moodDetected: 'calm',
     };
 
     setOrders(prev => [newOrder, ...prev]);
     setLogs(prev => [newLog, ...prev]);
 
-    // Update remaining pills back to 30
-    setMedications(prev => prev.map(m => 
-      m.id === medId ? { ...m, remainingPills: m.totalPills } : m
-    ));
-
-    alert(`Order ${orderId} dispatched to ${med.pharmacyPartner} for ₹${med.price}!`);
+    alert(`Demo refill record ${orderId} saved locally. No order was sent and no payment was taken.`);
   };
 
   const handleRunScenario = (scenario: 'morning' | 'vision' | 'somabox' | 'doubledose' | 'refill') => {
@@ -83,12 +83,12 @@ export default function Home() {
     } else if (scenario === 'vision') {
       setCurrentView('elder');
       SpeechService.speak(
-        "Hold the medicine strip up to the camera screen so I can verify the name and dosage for you."
+        "I can show the sample medicine-checking flow, but I cannot identify a real medicine from the camera."
       );
     } else if (scenario === 'somabox') {
       setCurrentView('somabox');
       SpeechService.speak(
-        "SomaBox Ambient Sentinel active. Monitoring physical medicine tray compartments and hand actions."
+        "SomaBox tray demonstration opened. This screen uses scripted scenarios and is not connected to a physical tray."
       );
     } else if (scenario === 'doubledose') {
       setCurrentView('elder');
@@ -98,13 +98,12 @@ export default function Home() {
         timestamp: 'Just now',
         medicationName: `${med.name} (Double-Dose Intercept)`,
         status: 'warning',
-        notes: `CRITICAL SAFETY INTERCEPT: Babuji attempted to take ${med.name} again. Intercepted by voice AI. Caregiver notified.`,
+        notes: `Demo warning: the saved list says ${med.name} was marked taken. No physical dose was blocked and no caregiver message was sent.`,
         verificationMethod: 'voice',
-        moodDetected: 'confused',
       };
       setLogs(prev => [newLog, ...prev]);
       SpeechService.speak(
-        `Wait, Babuji! Please do not take that pill! You already took your morning ${med.name} at 9:12 AM. Taking another can cause severe hypoglycemia. Please rest!`
+        `Your saved list says you marked ${med.name} taken at 9:12 AM. Please check your medicine record and ask your caregiver or pharmacist if you are unsure. This app cannot stop a physical dose.`
       );
     } else if (scenario === 'refill') {
       setCurrentView('elder');
@@ -116,23 +115,22 @@ export default function Home() {
         quantity: '1 Strip',
         price: med.price,
         orderedAt: 'Just now',
-        status: 'Processing',
+        status: 'Demo only',
         partner: 'Tata 1mg',
-        paidBy: 'Voice Authorized by Senior • Billed to Rahul Sharma',
+        paidBy: 'Local demo record • no payment taken',
       };
       const newLog: AdherenceLog = {
         id: `log-${Date.now()}`,
         timestamp: 'Just now',
         medicationName: `${med.name} Voice Reorder`,
         status: 'refill_ordered',
-        notes: `Voice-authorized reorder dispatched via Tata 1mg for ₹${med.price}. Caregiver card billed.`,
+        notes: `Demo refill choice for ${med.name}. No pharmacy request or payment was made.`,
         verificationMethod: 'voice',
-        moodDetected: 'cheerful',
       };
       setOrders(prev => [newOrder, ...prev]);
       setLogs(prev => [newLog, ...prev]);
       SpeechService.speak(
-        `Order confirmed, Babuji! I have placed an order for ${med.name} through Tata 1mg for rupees 245. A WhatsApp update has been sent to Rahul. Delivery tomorrow by 2 PM.`
+        `I saved a demo refill choice for ${med.name}. No pharmacy order or payment was made. Please ask your caregiver to arrange a refill.`
       );
     }
   };
@@ -185,9 +183,7 @@ export default function Home() {
             logs={logs}
             orders={orders}
             onTriggerRefill={handleTriggerRefillFromCaregiver}
-            onAddPrescription={() => {
-              alert('Prescription scanner: Upload doctor Rx photo to auto-extract schedules into Caregiver database.');
-            }}
+            onSaveMedication={handleSaveMedication}
           />
         )}
       </main>

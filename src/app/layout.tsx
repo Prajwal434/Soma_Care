@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SomaCare (साथी) | Voice-First AI Elderly Medication Platform",
+  title: "SomaCare (साथी) | Voice-First Elder Care Prototype",
   description: "Zero-touch conversational voice companion for seniors with automatic pharmacy fulfillment for families.",
 };
 

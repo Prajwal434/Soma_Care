@@ -25,7 +25,6 @@ export interface AdherenceLog {
   status: 'taken' | 'missed' | 'warning' | 'refill_ordered';
   notes: string;
   verificationMethod: 'voice' | 'vision' | 'manual';
-  moodDetected?: 'cheerful' | 'calm' | 'confused' | 'tired';
 }
 
 export interface PharmacyOrder {
@@ -34,8 +33,8 @@ export interface PharmacyOrder {
   quantity: string;
   price: number;
   orderedAt: string;
-  status: 'Delivered' | 'Dispatched' | 'Processing';
-  partner: 'Tata 1mg' | 'Apollo Pharmacy' | 'PharmEasy';
+  status: 'Delivered' | 'Dispatched' | 'Processing' | 'Demo only';
+  partner: 'Tata 1mg' | 'Apollo Pharmacy' | 'PharmEasy' | 'Not connected';
   paidBy: string;
 }
 

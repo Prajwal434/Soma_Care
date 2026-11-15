@@ -1,20 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  ShieldCheck, 
-  ShoppingBag, 
-  Activity, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle2, 
-  MapPin, 
-  CreditCard, 
-  Sparkles, 
-  Plus, 
-  Download, 
-  Smile 
-} from 'lucide-react';
+import { ShieldCheck, ShoppingBag, Activity, Clock, AlertTriangle, CheckCircle2, MapPin, CreditCard, Sparkles, Plus, Smile } from 'lucide-react';
 import { Medication, AdherenceLog, PharmacyOrder, SeniorProfile } from '../types';
 import { CareSetupPanel } from './CareSetupPanel';
 
@@ -24,7 +11,7 @@ interface CaregiverModeProps {
   logs: AdherenceLog[];
   orders: PharmacyOrder[];
   onTriggerRefill: (medId: string) => void;
-  onAddPrescription: () => void;
+  onSaveMedication: (medication: Medication) => void;
 }
 
 export const CaregiverMode: React.FC<CaregiverModeProps> = ({
@@ -33,16 +20,19 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
   logs,
   orders,
   onTriggerRefill,
-  onAddPrescription,
+  onSaveMedication,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'pharmacy' | 'insurance' | 'logs' | 'appointments' | 'access'>('overview');
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [showCareSetup, setShowCareSetup] = useState(false);
+  const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
+  const [showMedicationForm, setShowMedicationForm] = useState(false);
 
   // Compute adherence stats
   const takenCount = medications.filter(m => m.takenToday).length;
   const totalCount = medications.length;
-  const todayAdherence = Math.round((takenCount / totalCount) * 100);
+  const todayAdherence = totalCount ? Math.round((takenCount / totalCount) * 100) : 0;
+  const lowStockCount = medications.filter(med => med.remainingPills <= med.refillThreshold).length;
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-24 text-slate-100">
@@ -63,7 +53,7 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
             Care Dashboard: {profile.name} (Age {profile.age})
           </h1>
           <p className="text-slate-400 text-sm mt-1">
-            Supervised by son <strong className="text-white">{profile.caregiverName}</strong> • Daily biometric voice check-ins & smart fulfillment active.
+            Prototype view for <strong className="text-white">{profile.caregiverName}</strong> • Sample care data; no external services are connected.
           </p>
         </div>
 
@@ -74,17 +64,75 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
             className="flex-1 sm:flex-none px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl text-xs font-bold text-slate-200 flex items-center justify-center gap-2 transition-all"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            Insurance Certificate
+            Business model concept
           </button>
           <button
-            onClick={onAddPrescription}
+            onClick={() => { setEditingMedication(null); setShowMedicationForm(true); }}
             className="flex-1 sm:flex-none px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition-all"
           >
             <Plus className="w-4 h-4" />
-            Add Prescription (Scan Rx)
+            Add medication
           </button>
         </div>
       </div>
+
+      {showMedicationForm && (
+        <form
+          className="bg-slate-900 border border-indigo-500/40 rounded-3xl p-6 space-y-4"
+          onSubmit={event => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            const totalPills = Number(data.get('totalPills'));
+            const remainingPills = Number(data.get('remainingPills'));
+            const refillThreshold = Number(data.get('refillThreshold'));
+            if (remainingPills > totalPills || refillThreshold > totalPills) {
+              window.alert('Pills remaining and the refill threshold must not exceed the pack quantity.');
+              return;
+            }
+            const medication: Medication = {
+              id: editingMedication?.id ?? `med-${crypto.randomUUID()}`,
+              name: String(data.get('name')).trim(),
+              genericName: String(data.get('genericName')).trim(),
+              dosage: String(data.get('dosage')).trim(),
+              timeSlot: data.get('timeSlot') as Medication['timeSlot'],
+              scheduledTime: String(data.get('scheduledTime')).trim(),
+              instructions: String(data.get('instructions')).trim(),
+              pillColor: editingMedication?.pillColor ?? 'Not specified',
+              shape: editingMedication?.shape ?? 'Not specified',
+              takenToday: editingMedication?.takenToday ?? false,
+              takenAt: editingMedication?.takenAt,
+              remainingPills,
+              totalPills,
+              refillThreshold,
+              price: editingMedication?.price ?? 0,
+              pharmacyPartner: editingMedication?.pharmacyPartner ?? 'Not connected',
+            };
+            onSaveMedication(medication);
+            setShowMedicationForm(false);
+            setEditingMedication(null);
+          }}
+        >
+          <div className="flex justify-between items-center gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-white">{editingMedication ? 'Edit medicine schedule' : 'Add medicine'}</h2>
+              <p className="text-sm text-slate-400">Enter the details from the prescription. This saves in the current demo session.</p>
+            </div>
+            <button type="button" onClick={() => setShowMedicationForm(false)} className="min-h-11 px-4 rounded-xl bg-slate-800 text-white">Cancel</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="text-sm text-slate-300">Medicine name<input name="name" required defaultValue={editingMedication?.name} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
+            <label className="text-sm text-slate-300">Generic name<input name="genericName" defaultValue={editingMedication?.genericName} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
+            <label className="text-sm text-slate-300">Dose<input name="dosage" required defaultValue={editingMedication?.dosage} placeholder="As written on prescription" className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
+            <label className="text-sm text-slate-300">Time of day<select name="timeSlot" defaultValue={editingMedication?.timeSlot ?? 'Morning'} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white">{['Morning', 'Afternoon', 'Evening', 'Night'].map(slot => <option key={slot}>{slot}</option>)}</select></label>
+            <label className="text-sm text-slate-300">Scheduled time<input name="scheduledTime" required defaultValue={editingMedication?.scheduledTime} placeholder="09:00 AM" className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
+            <label className="text-sm text-slate-300">Pills remaining<input name="remainingPills" type="number" min="0" required defaultValue={editingMedication?.remainingPills ?? 30} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
+            <label className="text-sm text-slate-300">Pack quantity<input name="totalPills" type="number" min="1" required defaultValue={editingMedication?.totalPills ?? 30} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
+            <label className="text-sm text-slate-300">Refill reminder threshold<input name="refillThreshold" type="number" min="0" required defaultValue={editingMedication?.refillThreshold ?? 5} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
+          </div>
+          <label className="block text-sm text-slate-300">Instructions from prescription<textarea name="instructions" rows={2} defaultValue={editingMedication?.instructions} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
+          <button type="submit" className="min-h-12 px-6 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold">Save medicine schedule</button>
+        </form>
+      )}
 
       {/* KPI Cards Row (The Business & Care Metrics) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -97,41 +145,40 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-white">{profile.adherenceRate}%</span>
-            <span className="text-xs font-semibold text-emerald-400">+{todayAdherence > 50 ? '2.4%' : '0%'} this wk</span>
+            <span className="text-3xl font-black text-white">{todayAdherence}%</span>
+            <span className="text-xs font-semibold text-slate-400">today</span>
           </div>
           <p className="text-xs text-slate-400 mt-2">
-            {takenCount} of {totalCount} scheduled doses verified today
+            {takenCount} of {totalCount} scheduled doses marked taken today
           </p>
           <div className="w-full bg-slate-800 h-2 rounded-full mt-3 overflow-hidden">
             <div 
               className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-              style={{ width: `${profile.adherenceRate}%` }} 
+              style={{ width: `${todayAdherence}%` }}
             />
           </div>
         </div>
 
-        {/* KPI 2: Cognitive & Mood Sentiment */}
+        {/* KPI 2: Sample local activity */}
         <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-3xl relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Voice Sentiment</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sample activity</span>
             <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
               <Smile className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-amber-300">Cheerful</span>
-            <span className="text-xs font-semibold text-slate-400">Normal Pitch</span>
+            <span className="text-2xl font-black text-amber-300">{logs.length} events</span>
           </div>
           <p className="text-xs text-slate-400 mt-2">
-            Acoustic voice analysis detected high cognitive clarity & calm response.
+            Local demonstration events only. SomaCare does not assess mood, cognition, or voice biomarkers.
           </p>
           <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
-            <Activity className="w-3.5 h-3.5" /> Stability Score: 94/100
+            <Activity className="w-3.5 h-3.5" /> No clinical score is calculated
           </div>
         </div>
 
-        {/* KPI 3: Smart Refill Inventory (The Commerce Hook) */}
+        {/* KPI 3: Refill inventory */}
         <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-3xl relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Refill Inventory</span>
@@ -140,34 +187,32 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-orange-400">1 Low Stock</span>
-            <span className="text-xs font-semibold text-slate-400">Tata 1mg</span>
+            <span className="text-2xl font-black text-orange-400">{lowStockCount} low stock</span>
           </div>
           <p className="text-xs text-slate-400 mt-2">
-            Glycomet-GP has 3 pills remaining. Auto-reorder enabled on prompt.
+            Based on the medicine quantities in this sample schedule. Review before arranging a refill.
           </p>
           <div className="mt-3 flex items-center gap-1.5 text-xs text-orange-400 font-semibold">
-            <Sparkles className="w-3.5 h-3.5" /> 1-Click Reorder Ready
+            <Sparkles className="w-3.5 h-3.5" /> No order is placed automatically
           </div>
         </div>
 
         {/* KPI 4: InsurTech Premium Savings (The B2B Hook) */}
         <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-3xl relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">InsurTech Reward</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Insurer connection</span>
             <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
               <ShieldCheck className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-teal-300">₹{profile.annualSavings}</span>
-            <span className="text-xs font-semibold text-teal-400">Saved/yr</span>
+            <span className="text-2xl font-black text-teal-300">Concept only</span>
           </div>
           <p className="text-xs text-slate-400 mt-2">
-            Star Health 12% premium discount applied for verified &gt;95% adherence.
+            No insurer is connected. This prototype calculates no discount or savings.
           </p>
           <div className="mt-3 flex items-center gap-1.5 text-xs text-teal-400 font-semibold">
-            ✓ Policy {profile.insurancePolicyNumber}
+            No policy data is verified
           </div>
         </div>
       </div>
@@ -177,7 +222,7 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
           <p className="text-xs font-bold uppercase tracking-wide text-indigo-300">Next appointment</p>
           <h2 className="text-xl font-bold text-white mt-2">Dr. Meera Kapoor • Cardiology</h2>
           <p className="text-sm text-slate-300 mt-1">Thursday, 19 Nov at 11:30 AM • City Care Clinic, Lucknow</p>
-          <p className="text-xs text-indigo-200 mt-3">Email reminder scheduled for you and Ramesh, 24 hours before.</p>
+          <p className="text-xs text-indigo-200 mt-3">Sample appointment. Configure reminder preferences in care setup; this prototype does not send email.</p>
         </section>
         <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5">
           <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Shared care access</p>
@@ -186,7 +231,7 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
           <div className="flex flex-wrap gap-2 mt-3">
             <span className="px-3 py-2 rounded-xl bg-slate-800 text-sm text-white">Rahul • Caregiver • Edit</span>
             <span className="px-3 py-2 rounded-xl bg-slate-800 text-sm text-white">Anita • Family • View</span>
-            <button onClick={() => alert('Demo passcode: 482 916. Share only with a trusted family member.')} className="px-3 py-2 rounded-xl bg-emerald-600 text-sm font-bold text-white">Invite with passcode</button>
+            <button onClick={() => setShowCareSetup(true)} className="px-3 py-2 rounded-xl bg-emerald-600 text-sm font-bold text-white">Prepare demo invite</button>
           </div>
         </section>
       </div>
@@ -206,9 +251,9 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
           { id: 'overview', label: 'Medication Schedule & Adherence' },
           { id: 'appointments', label: 'Appointments' },
           { id: 'access', label: 'Family Access' },
-          { id: 'pharmacy', label: 'Smart Pharmacy & Auto-Refills (1mg/Apollo)' },
-          { id: 'logs', label: 'Live Verification Transcript & Safety Logs' },
-          { id: 'insurance', label: 'InsurTech & Hospital Compliance' },
+          { id: 'pharmacy', label: 'Refill review (demo)' },
+          { id: 'logs', label: 'Care activity (demo)' },
+          { id: 'insurance', label: 'Future insurer model' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -228,12 +273,12 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
         <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div><h3 className="text-xl font-bold text-white">Doctor appointments</h3><p className="text-sm text-slate-400">Shared schedule and reminder status</p></div>
-            <button onClick={() => alert('Appointment added to the shared care calendar.')} className="px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl">+ Add appointment</button>
+            <button onClick={() => setShowCareSetup(true)} className="px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl">Open appointment setup</button>
           </div>
           <div className="p-5 rounded-2xl bg-indigo-950/40 border border-indigo-500/30">
-            <h4 className="text-lg font-bold text-white">Dr. Meera Kapoor • Cardiology</h4>
+            <h4 className="text-lg font-bold text-white">Sample: Dr. Meera Kapoor • Cardiology</h4>
             <p className="text-slate-300">Thursday, 19 Nov • 11:30 AM • City Care Clinic, Lucknow</p>
-            <p className="text-sm text-indigo-200 mt-2">Email reminders: patient and caregiver, 24 hours before and on appointment morning.</p>
+            <p className="text-sm text-indigo-200 mt-2">Reminder preview only. Set preferences in care setup; no email is sent.</p>
           </div>
         </section>
       )}
@@ -242,7 +287,7 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
           <h3 className="text-xl font-bold text-white">People sharing Ramesh&apos;s care</h3>
           <p className="text-sm text-slate-400">Access uses a personal passcode. The senior decides who can view or change the care plan.</p>
           {[['Rahul Sharma', 'Primary caregiver', 'Can manage medicines and appointments'], ['Anita Sharma', 'Family member', 'Can view schedule and adherence']].map(([name, role, access]) => <div key={name} className="p-4 rounded-2xl bg-slate-800 flex flex-col sm:flex-row sm:justify-between gap-1"><strong className="text-white">{name} • {role}</strong><span className="text-sm text-slate-300">{access}</span></div>)}
-          <button onClick={() => alert('Demo passcode: 482 916. This prototype does not create real accounts.')} className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">Create family passcode</button>
+          <button onClick={() => setShowCareSetup(true)} className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">Open demo family setup</button>
         </section>
       )}
 
@@ -302,50 +347,51 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
 
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[11px] text-slate-400">
-                      Partner: <strong className="text-slate-200">{med.pharmacyPartner}</strong> (₹{med.price}/strip)
+                      Refill preference: <strong className="text-slate-200">{med.pharmacyPartner === 'Not connected' ? 'none selected' : med.pharmacyPartner}</strong>{med.price > 0 ? ` (₹${med.price}/strip)` : ' (price not set)'}
                     </span>
                     {med.remainingPills <= med.refillThreshold && (
                       <button
                         onClick={() => onTriggerRefill(med.id)}
                         className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1 transition-all"
                       >
-                        <ShoppingBag className="w-3 h-3" /> Auto-Refill Now
+                        <ShoppingBag className="w-3 h-3" /> Review demo refill
                       </button>
                     )}
                   </div>
                 </div>
+                <button type="button" onClick={() => { setEditingMedication(med); setShowMedicationForm(true); }} className="mt-3 min-h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-slate-200">Edit schedule</button>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Tab 2: Smart Pharmacy (The Commerce Model) */}
+      {/* Tab 2: Refill flow concept */}
       {activeTab === 'pharmacy' && (
         <div className="space-y-6">
           <div className="bg-gradient-to-r from-orange-950/60 via-slate-900 to-indigo-950/60 border border-orange-500/30 rounded-3xl p-6 sm:p-7">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <span className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 font-bold text-xs uppercase tracking-wider">
-                  Recurring Commerce Engine
+                  Prototype flow
                 </span>
                 <h3 className="text-2xl font-bold text-white mt-2">
-                  Connected Fulfillment Pipeline (Tata 1mg & Apollo)
+                  Refill review and approval
                 </h3>
                 <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-                  Soma Care actively projects when blister packs will exhaust based on daily adherence verifications. Voice authorization or 1-click caregiver trigger routes orders directly to partner pharmacies with 15% affiliate commission.
+                  Review sample medicine quantities and choose when a caregiver should arrange a refill. No pharmacy, payment, or ordering service is connected; any listed orders are sample records.
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <span className="text-xs text-slate-400">Billed Card:</span>
-                <p className="text-sm font-bold text-white">HDFC Regalia •••• 9214</p>
-                <span className="text-xs text-emerald-400 font-semibold">Auto-Pay Authorized</span>
+                <span className="text-xs text-slate-400">External services:</span>
+                <p className="text-sm font-bold text-white">Not connected</p>
+                <span className="text-xs text-emerald-400 font-semibold">No payment is taken</span>
               </div>
             </div>
           </div>
 
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Clock className="w-5 h-5 text-orange-400" /> Recent Automated Orders & Refill History
+            <Clock className="w-5 h-5 text-orange-400" /> Sample refill records
           </h3>
 
           <div className="space-y-3">
@@ -389,9 +435,9 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-indigo-400" />
-              Real-Time Adherence Timeline & Audio Verification Events
+              Local demonstration activity
             </h3>
-            <span className="text-xs text-slate-400">Auto-synced with Senior device</span>
+            <span className="text-xs text-slate-400">Sample events; no other device is connected</span>
           </div>
 
           <div className="space-y-3">
@@ -431,11 +477,6 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
                     <span className="px-2.5 py-1 rounded-md bg-slate-800 text-[11px] font-mono text-slate-300">
                       Method: {log.verificationMethod.toUpperCase()}
                     </span>
-                    {log.moodDetected && (
-                      <span className="px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-300 text-[11px] font-semibold">
-                        Mood: {log.moodDetected}
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -450,56 +491,10 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
 
       {/* Tab 4: InsurTech & Compliance (The B2B Model) */}
       {activeTab === 'insurance' && (
-        <div className="space-y-6">
-          <div className="bg-gradient-to-r from-teal-950/60 to-slate-900 border border-teal-500/30 rounded-3xl p-6 sm:p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div>
-                <span className="px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 font-bold text-xs uppercase tracking-wider">
-                  B2B InsurTech Integration
-                </span>
-                <h3 className="text-2xl font-bold text-white mt-2">
-                  {profile.insurancePartner} Compliance Rating
-                </h3>
-                <p className="text-sm text-slate-300 mt-1 max-w-xl">
-                  By mathematically proving daily medicine adherence via voice and camera logs, hospitalizations from stroke and glycemic spikes drop by 38%. Insurers reward policyholders with direct annual premium discounts.
-                </p>
-              </div>
-              <div className="bg-teal-900/30 border border-teal-500/40 p-4 rounded-2xl text-center shrink-0">
-                <span className="text-xs font-bold text-teal-300 uppercase">Annual Premium Saved</span>
-                <p className="text-3xl font-black text-white">₹{profile.annualSavings}</p>
-                <span className="text-xs text-teal-400 font-semibold">Applied on Policy Renewal</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Underwriter Metrics Table */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4">
-            <h4 className="text-base font-bold text-white">Actuarial Risk Assessment for Ramesh Sharma</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 bg-slate-800/60 rounded-2xl">
-                <span className="text-xs text-slate-400">90-Day Adherence Score:</span>
-                <p className="text-2xl font-black text-emerald-400">96.4%</p>
-                <span className="text-[11px] text-slate-400">Benchmark: &gt;80% required</span>
-              </div>
-              <div className="p-4 bg-slate-800/60 rounded-2xl">
-                <span className="text-xs text-slate-400">Double-Dosing Incidents:</span>
-                <p className="text-2xl font-black text-teal-400">0 Ingested</p>
-                <span className="text-[11px] text-emerald-400">1 Intercepted by AI</span>
-              </div>
-              <div className="p-4 bg-slate-800/60 rounded-2xl">
-                <span className="text-xs text-slate-400">Predicted Emergency Risk:</span>
-                <p className="text-2xl font-black text-emerald-300">LOW (0.04)</p>
-                <span className="text-[11px] text-slate-400">Eligible for Preferred Tier</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowCertificateModal(true)}
-              className="mt-4 px-6 py-3 bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold rounded-xl text-sm flex items-center gap-2 transition-all"
-            >
-              <Download className="w-4 h-4" /> Export Verified Underwriter Certificate (PDF)
-            </button>
-          </div>
+        <div className="bg-slate-900/80 border border-teal-500/30 rounded-3xl p-6 sm:p-8 space-y-4">
+          <h3 className="text-2xl font-bold text-white">Possible future insurer partnership</h3>
+          <p className="text-slate-300">A future partner might choose to support medication routines, but this prototype has no insurer integration. It does not calculate risk, verify adherence for an insurer, issue certificates, or promise discounts or health outcomes.</p>
+          <p className="text-sm text-slate-400">Any partnerships would require consent, privacy and security review, and evidence before claims about clinical or financial impact.</p>
         </div>
       )}
 
@@ -511,8 +506,8 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
               <div className="flex items-center gap-3">
                 <ShieldCheck className="w-8 h-8 text-teal-400" />
                 <div>
-                  <h3 className="text-xl font-bold text-white">Verified Adherence Certificate</h3>
-                  <p className="text-xs text-slate-400">Issued by Soma Care Health Network</p>
+                  <h3 className="text-xl font-bold text-white">Business model concept</h3>
+                  <p className="text-xs text-slate-400">No insurer integration is connected</p>
                 </div>
               </div>
               <button
@@ -523,42 +518,9 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
               </button>
             </div>
 
-            <div className="bg-slate-950 p-5 rounded-2xl font-mono text-xs text-slate-300 space-y-3 border border-slate-800">
-              <div className="flex justify-between">
-                <span className="text-slate-500">PATIENT NAME:</span>
-                <span className="text-white font-bold">{profile.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">POLICY NUMBER:</span>
-                <span className="text-white font-bold">{profile.insurancePolicyNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">UNDERWRITER:</span>
-                <span className="text-teal-400 font-bold">{profile.insurancePartner}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">AUDITED ADHERENCE:</span>
-                <span className="text-emerald-400 font-bold">{profile.adherenceRate}% (Pass &gt; 90%)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">APPROVED DISCOUNT:</span>
-                <span className="text-teal-300 font-bold">12% (₹{profile.annualSavings}/year)</span>
-              </div>
-              <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-500">
-                Cryptographically signed by SomaCare Telehealth Engine • Hash: 0x8a92...bf41
-              </div>
-            </div>
+            <p className="text-slate-300">An insurer partnership is a future business concept only. No patient adherence is shared, no insurer decision is made, and no savings or clinical outcome is verified by this demo.</p>
 
             <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  alert('Certificate downloaded successfully!');
-                  setShowCertificateModal(false);
-                }}
-                className="flex-1 py-3 bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold rounded-xl text-sm flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" /> Download PDF
-              </button>
               <button
                 onClick={() => setShowCertificateModal(false)}
                 className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-sm"

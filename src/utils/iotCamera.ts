@@ -22,6 +22,24 @@ export interface CameraFramePacket {
   rawConfidence: number;
 }
 
+interface BluetoothDeviceLike {
+  name?: string;
+  gatt?: { connect: () => Promise<unknown> };
+}
+
+interface BluetoothNavigator extends Navigator {
+  bluetooth?: {
+    requestDevice: (options: {
+      filters: Array<{ namePrefix: string }>;
+      optionalServices: string[];
+    }) => Promise<BluetoothDeviceLike>;
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 export class IoTCameraManager {
   private static telemetry: IoTTelemetry = {
     deviceId: 'SOMABOX-ESP32-0941',
@@ -54,19 +72,15 @@ export class IoTCameraManager {
    */
   static async connectBluetooth(): Promise<boolean> {
     try {
-      if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
-        // Fallback for browsers without Web Bluetooth
+      const bluetooth = typeof navigator === 'undefined' ? undefined : (navigator as BluetoothNavigator).bluetooth;
+      if (typeof window === 'undefined' || !bluetooth) {
         this.telemetry.protocol = 'BLE_GATT';
-        this.telemetry.connected = true;
-        this.telemetry.batteryPercent = 92;
-        this.telemetry.rssiSignalDbm = -48;
-        this.telemetry.latencyMs = 12;
+        this.telemetry.connected = false;
         this.notify();
-        return true;
+        return false;
       }
 
-      // Web Bluetooth API Standard Request
-      const device = await (navigator as any).bluetooth.requestDevice({
+      const device = await bluetooth.requestDevice({
         filters: [{ namePrefix: 'SomaBox' }],
         optionalServices: ['battery_service', '0000ffe0-0000-1000-8000-00805f9b34fb']
       });
@@ -81,18 +95,19 @@ export class IoTCameraManager {
       }
       return false;
     } catch (err) {
-      console.warn('Bluetooth connection fallback to virtual GATT bridge:', err);
+      console.warn('Bluetooth connection failed:', err);
       this.telemetry.protocol = 'BLE_GATT';
-      this.telemetry.connected = true;
+      this.telemetry.connected = false;
       this.notify();
-      return true;
+      return false;
     }
   }
 
   /**
    * Connect to micro-cam over local Wi-Fi MJPEG / WebSocket
    */
-  static connectWiFi(ipAddress: string = '192.168.1.140'): boolean {
+  static simulateWiFiConnection(): boolean {
+    // This models the desired connection state; no camera endpoint is contacted yet.
     this.telemetry.protocol = 'WIFI_WEBSOCKET';
     this.telemetry.connected = true;
     this.telemetry.batteryPercent = 88;
@@ -106,14 +121,14 @@ export class IoTCameraManager {
   /**
    * Simulate frame packet evaluation with fuzzing & security checks
    */
-  static validateTelemetryPacket(packet: any): { valid: boolean; error?: string } {
-    if (!packet || typeof packet !== 'object') {
+  static validateTelemetryPacket(packet: unknown): { valid: boolean; error?: string } {
+    if (!isRecord(packet)) {
       return { valid: false, error: 'Packet must be a valid JSON object' };
     }
     if (typeof packet.pillsDetected !== 'number' || packet.pillsDetected < 0 || packet.pillsDetected > 20) {
       return { valid: false, error: 'Pill count outside sane physical boundary (0-20)' };
     }
-    if (!['SLOT_1_MORNING', 'SLOT_2_AFTERNOON', 'SLOT_3_EVENING', 'SLOT_4_NIGHT', 'ALL_CLOSED'].includes(packet.slotState)) {
+    if (typeof packet.slotState !== 'string' || !['SLOT_1_MORNING', 'SLOT_2_AFTERNOON', 'SLOT_3_EVENING', 'SLOT_4_NIGHT', 'ALL_CLOSED'].includes(packet.slotState)) {
       return { valid: false, error: 'Unrecognized slot compartment identifier' };
     }
     return { valid: true };
