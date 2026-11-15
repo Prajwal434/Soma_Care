@@ -169,15 +169,20 @@ export const ElderMode: React.FC<ElderModeProps> = ({
         {/* SOS Emergency Call Button */}
         <button
           onClick={() => setEmergencyModalOpen(true)}
-          className="px-6 py-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-lg flex items-center gap-3 shadow-lg shadow-rose-600/30 active:scale-95 transition-all shrink-0 border-2 border-rose-400/50"
+          aria-label={`Emergency SOS call to primary caregiver ${profile.caregiverName}`}
+          className="min-h-[52px] px-6 py-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-lg flex items-center gap-3 shadow-lg shadow-rose-600/30 active:scale-95 transition-all shrink-0 border-2 border-rose-400/50 focus:outline-none focus:ring-4 focus:ring-rose-500/50"
         >
-          <PhoneCall className="w-6 h-6 animate-pulse" />
+          <PhoneCall className="w-6 h-6 animate-pulse" aria-hidden="true" />
           <span>Call {profile.caregiverName} (SOS)</span>
         </button>
       </div>
 
       {/* Main Interactive Voice Portal */}
-      <div className="bg-slate-900/90 border-2 border-slate-700 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-md relative overflow-hidden flex flex-col items-center text-center">
+      <div 
+        role="region" 
+        aria-label="Elder Voice Companion Interface"
+        className="bg-slate-900/90 border-2 border-slate-700 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-md relative overflow-hidden flex flex-col items-center text-center"
+      >
         {/* Ambient Pulsing Rings */}
         <div className="relative my-6 flex items-center justify-center">
           {/* Animated Glow Rings when speaking or listening */}
@@ -195,7 +200,9 @@ export const ElderMode: React.FC<ElderModeProps> = ({
           {/* Central Giant Voice Button */}
           <button
             onClick={handleStartListening}
-            className={`relative z-10 w-36 h-36 sm:w-44 sm:h-44 rounded-full flex flex-col items-center justify-center shadow-2xl transition-all duration-300 transform active:scale-95 ${
+            aria-label={isListening ? "Listening to your voice" : isSpeaking ? "Speaking medicine instructions" : "Tap to speak with voice companion"}
+            aria-pressed={isListening}
+            className={`relative z-10 w-36 h-36 sm:w-44 sm:h-44 rounded-full flex flex-col items-center justify-center shadow-2xl transition-all duration-300 transform active:scale-95 focus:outline-none focus:ring-8 focus:ring-amber-500/60 ${
               isListening
                 ? 'bg-gradient-to-tr from-amber-500 to-orange-500 text-slate-950 ring-8 ring-amber-500/30 shadow-amber-500/50 scale-105'
                 : isSpeaking
@@ -237,9 +244,9 @@ export const ElderMode: React.FC<ElderModeProps> = ({
         </div>
 
         {/* Live Conversation Cards (Large Font for Aging Eyes) */}
-        <div className="w-full space-y-4 max-w-2xl text-left">
+        <div className="w-full space-y-4 max-w-2xl text-left" role="region" aria-label="Speech Transcript Dialog">
           {seniorSpeech && (
-            <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 sm:p-5">
+            <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 sm:p-5" aria-live="polite">
               <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">You Said:</span>
               <p className="text-xl sm:text-2xl font-bold text-amber-100 mt-1">
                 &ldquo;{seniorSpeech}&rdquo;
@@ -247,7 +254,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
             </div>
           )}
 
-          <div className="bg-slate-800/90 border border-slate-600 rounded-2xl p-5 sm:p-6 shadow-lg">
+          <div className="bg-slate-800/90 border border-slate-600 rounded-2xl p-5 sm:p-6 shadow-lg" aria-live="polite" role="status">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4" /> Soma Care Companion:
