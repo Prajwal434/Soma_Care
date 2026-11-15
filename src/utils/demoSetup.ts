@@ -24,3 +24,10 @@ export function getEnabledReminderLabels(preferences: ReminderPreferences): stri
   if (preferences.appointment) labels.push('appointments');
   return labels;
 }
+
+/** Returns null for speech without the wake word, or the command after “Soma”. */
+export function extractWakeWordCommand(transcript: string): string | null {
+  const wakeMatch = transcript.match(/\b(?:hey\s+)?soma\b[,:]?\s*/i);
+  if (!wakeMatch || wakeMatch.index === undefined) return null;
+  return transcript.slice(wakeMatch.index + wakeMatch[0].length).trim();
+}

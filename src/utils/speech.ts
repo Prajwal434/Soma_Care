@@ -96,7 +96,8 @@ export class SpeechService {
   static listen(
     onResult: (text: string, isFinal: boolean) => void,
     onError: (err: any) => void,
-    onEnd: () => void
+    onEnd: () => void,
+    continuous = false
   ): { stop: () => void } {
     if (typeof window === 'undefined') {
       return { stop: () => {} };
@@ -113,7 +114,7 @@ export class SpeechService {
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      recognition.continuous = continuous;
       recognition.interimResults = true;
       recognition.lang = 'en-IN';
 

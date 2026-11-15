@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Mic, 
   Volume2, 
@@ -15,6 +15,7 @@ import {
 import { Medication, AdherenceLog, PharmacyOrder, SeniorProfile } from '../types';
 import { SpeechService } from '../utils/speech';
 import { processSeniorUtterance } from '../utils/aiBrain';
+import { extractWakeWordCommand } from '../utils/demoSetup';
 import { PillScannerModal } from './PillScannerModal';
 
 interface ElderModeProps {
@@ -37,6 +38,11 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const wakeListenerRef = useRef<{ stop: () => void } | null>(null);
+  const wakeRestartTimerRef = useRef<number | null>(null);
+  const wakeEnabledRef = useRef(false);
+  const suspendWakeRestartRef = useRef(false);
   const [seniorSpeech, setSeniorSpeech] = useState<string>('');
   const [aiSpeechResponse, setAiSpeechResponse] = useState<string>(
     `Namaste ${profile.nickname}! It is 10:00 AM. Did you take your morning sugar tablet after breakfast?`
@@ -47,17 +53,30 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 
   useEffect(() => {
     SpeechService.init();
-    const welcomeTimer = window.setTimeout(() => handleSpeak(aiSpeechResponse), 700);
-    return () => window.clearTimeout(welcomeTimer);
+    return () => {
+      wakeEnabledRef.current = false;
+      if (wakeRestartTimerRef.current) window.clearTimeout(wakeRestartTimerRef.current);
+      wakeListenerRef.current?.stop();
+    };
   }, []);
 
   const handleSpeak = (text: string) => {
+    if (wakeEnabledRef.current) {
+      suspendWakeRestartRef.current = true;
+      if (wakeRestartTimerRef.current) window.clearTimeout(wakeRestartTimerRef.current);
+      wakeListenerRef.current?.stop();
+    }
     setIsSpeaking(true);
     SpeechService.speak(
       text,
       () => setIsSpeaking(true),
       () => setIsSpeaking(false)
-    );
+    ).then(() => {
+      if (wakeEnabledRef.current) {
+        suspendWakeRestartRef.current = false;
+        wakeRestartTimerRef.current = window.setTimeout(startWakeWordListener, 500);
+      }
+    });
   };
 
   const handleStartListening = () => {
@@ -125,6 +144,61 @@ export const ElderMode: React.FC<ElderModeProps> = ({
     }
   };
 
+  const startWakeWordListener = () => {
+    if (!wakeEnabledRef.current) return;
+    setIsListening(true);
+    wakeListenerRef.current = SpeechService.listen(
+      (transcript, isFinal) => {
+        setSeniorSpeech(transcript);
+        if (!isFinal) return;
+        const command = extractWakeWordCommand(transcript);
+        if (command === null) return;
+        if (command) {
+          handleProcessUtterance(command);
+        } else {
+          setAiSpeechResponse('I am here. What would you like help with?');
+          handleSpeak('I am here. What would you like help with?');
+        }
+      },
+      (error) => {
+        console.warn('Wake word listening stopped:', error);
+        setIsListening(false);
+        if (wakeEnabledRef.current) {
+          wakeEnabledRef.current = false;
+          setVoiceEnabled(false);
+          setAiSpeechResponse('Voice access is off. You can continue with the large buttons or enable hands-free voice again.');
+        }
+      },
+      () => {
+        setIsListening(false);
+        if (suspendWakeRestartRef.current) return;
+        if (!wakeEnabledRef.current) {
+          return;
+        }
+        wakeRestartTimerRef.current = window.setTimeout(startWakeWordListener, 700);
+      },
+      true
+    );
+  };
+
+  const handleEnableWakeWord = () => {
+    wakeEnabledRef.current = true;
+    setVoiceEnabled(true);
+    setAiSpeechResponse('Hands-free voice is on. Say “Soma” followed by your request.');
+    startWakeWordListener();
+    handleSpeak(`Namaste ${profile.nickname}. Voice is ready. Say Soma, then tell me what you need. The microphone is on while hands-free voice is enabled.`);
+  };
+
+  const handleDisableWakeWord = () => {
+    wakeEnabledRef.current = false;
+    setVoiceEnabled(false);
+    setIsListening(false);
+    if (wakeRestartTimerRef.current) window.clearTimeout(wakeRestartTimerRef.current);
+    wakeListenerRef.current?.stop();
+    wakeListenerRef.current = null;
+    SpeechService.stopSpeaking();
+  };
+
   const handleManualAction = (text: string) => {
     setSeniorSpeech(text);
     handleProcessUtterance(text);
@@ -154,6 +228,25 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-20">
+      {!voiceEnabled ? (
+        <section className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-400/60 rounded-3xl p-6 sm:p-8 text-center shadow-xl" aria-labelledby="voice-start-title">
+          <div className="max-w-2xl mx-auto space-y-3">
+            <p className="text-sm font-bold uppercase tracking-wide text-amber-200">Hands-free voice companion</p>
+            <h2 id="voice-start-title" className="text-2xl sm:text-3xl font-extrabold text-white">Enable SomaCare wake word</h2>
+            <p className="text-base sm:text-lg text-amber-100">Tap once and allow microphone access when your browser asks. Then say <strong>“Soma”</strong> followed by what you need. The microphone stays on until you turn hands-free voice off.</p>
+            <button onClick={handleEnableWakeWord} className="min-h-16 w-full sm:w-auto px-8 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xl font-extrabold shadow-lg focus:outline-none focus:ring-4 focus:ring-white/70">
+              <Mic className="w-6 h-6 inline-block mr-2 align-middle" />Enable hands-free voice
+            </button>
+            <p className="text-sm text-amber-100/80">Browser support varies. You can always use the large on-screen buttons instead.</p>
+          </div>
+        </section>
+      ) : (
+        <div className="rounded-2xl bg-emerald-950/40 border border-emerald-500/40 px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-emerald-100 text-sm font-semibold" role="status">
+          <span><Mic className="w-4 h-4 inline mr-2"/>Hands-free voice is on. {isListening ? 'Listening for “Soma”…' : 'Voice listening paused while SomaCare speaks.'}</span>
+          <button onClick={handleDisableWakeWord} className="min-h-11 px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-bold">Turn voice off</button>
+        </div>
+      )}
+
       {/* Warm Elderly Greeting Banner */}
       <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 border-2 border-amber-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
         <div>
@@ -201,8 +294,8 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 
           {/* Central Giant Voice Button */}
           <button
-            onClick={handleStartListening}
-            aria-label={isListening ? "Listening to your voice" : isSpeaking ? "Speaking medicine instructions" : "Tap to speak with voice companion"}
+            onClick={voiceEnabled ? handleDisableWakeWord : handleStartListening}
+            aria-label={voiceEnabled ? "Turn hands-free voice off" : isListening ? "Listening to your voice" : isSpeaking ? "Speaking medicine instructions" : "Tap to speak with voice companion"}
             aria-pressed={isListening}
             className={`relative z-10 w-36 h-36 sm:w-44 sm:h-44 rounded-full flex flex-col items-center justify-center shadow-2xl transition-all duration-300 transform active:scale-95 focus:outline-none focus:ring-8 focus:ring-amber-500/60 ${
               isListening
