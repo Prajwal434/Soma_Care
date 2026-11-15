@@ -40,6 +40,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const wakeListenerRef = useRef<{ stop: () => void } | null>(null);
+  const manualListenerRef = useRef<{ stop: () => void } | null>(null);
   const wakeRestartTimerRef = useRef<number | null>(null);
   const wakeEnabledRef = useRef(false);
   const suspendWakeRestartRef = useRef(false);
@@ -81,7 +82,8 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 
   const handleStartListening = () => {
     if (isListening) {
-      SpeechService.stopSpeaking();
+      manualListenerRef.current?.stop();
+      manualListenerRef.current = null;
       setIsListening(false);
       return;
     }
@@ -91,7 +93,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
     setIsListening(true);
     setSeniorSpeech('');
 
-    SpeechService.listen(
+    manualListenerRef.current = SpeechService.listen(
       (transcript, isFinal) => {
         setSeniorSpeech(transcript);
         if (isFinal) {
@@ -102,9 +104,11 @@ export const ElderMode: React.FC<ElderModeProps> = ({
       (error) => {
         console.warn('Speech error:', error);
         setIsListening(false);
+        manualListenerRef.current = null;
       },
       () => {
         setIsListening(false);
+        manualListenerRef.current = null;
       }
     );
   };
@@ -166,7 +170,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
         if (wakeEnabledRef.current) {
           wakeEnabledRef.current = false;
           setVoiceEnabled(false);
-          setAiSpeechResponse('Voice access is off. You can continue with the large buttons or enable hands-free voice again.');
+          setAiSpeechResponse('Microphone access is unavailable. Check your browser permissions, or continue with the large on-screen buttons.');
         }
       },
       () => {
@@ -186,7 +190,6 @@ export const ElderMode: React.FC<ElderModeProps> = ({
     setVoiceEnabled(true);
     setAiSpeechResponse('Hands-free voice is on. Say “Soma” followed by your request.');
     startWakeWordListener();
-    handleSpeak(`Namaste ${profile.nickname}. Voice is ready. Say Soma, then tell me what you need. The microphone is on while hands-free voice is enabled.`);
   };
 
   const handleDisableWakeWord = () => {
@@ -196,6 +199,8 @@ export const ElderMode: React.FC<ElderModeProps> = ({
     if (wakeRestartTimerRef.current) window.clearTimeout(wakeRestartTimerRef.current);
     wakeListenerRef.current?.stop();
     wakeListenerRef.current = null;
+    manualListenerRef.current?.stop();
+    manualListenerRef.current = null;
     SpeechService.stopSpeaking();
   };
 

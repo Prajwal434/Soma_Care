@@ -1,76 +1,56 @@
-# SomaCare (साथी AI)
-### Voice-First Elderly Care Companion & Smart Pharmacy Network
-*Built for Catalyst Hackathon 2026 by MnM, PromptWars, Hack2skill*
+# SomaCare (साथी)
 
----
+SomaCare is a hackathon prototype for collaborative elderly care. It brings medication routines, family coordination, and an optional smart medicine tray into one shared care experience. The interface is split into three sections because each participant has different needs and comfort levels with technology.
 
-## 💡 The Core Problem
-Over **140 million seniors in India** suffer from chronic conditions (diabetes, hypertension, arthritis). **Over 60% fail their medication schedules** because modern apps and push notifications have too much cognitive friction:
-1. Seniors cannot navigate complex dropdowns or tiny fonts on smartphones.
-2. Clicking a button or saying *"I took it"* does **not** prevent accidental double-dosing if their hands shake and lift two pills from the box.
-3. Seniors often confuse compartments (e.g. taking nighttime sleeping/cholesterol pills in the morning).
-4. Working children (in Bangalore, Mumbai, or abroad as NRIs) experience daily anxiety and guilt over their parents' health.
+## Why the UI has three sections
 
----
+The person receiving care remains at the centre of decisions, but they are not always the person who will set up and maintain a digital service. An adult child, relative, or hired caregiver may be the person who first configures the profile, enters prescriptions, adds appointments, and chooses who receives reminders. The UI gives that person a practical setup space without making the older adult navigate configuration screens every day.
 
-## 🚀 The Solution: SomaCare & SomaBox™
-**The elder is the user, but the working child is the buyer.**
+### 1. Senior Voice
 
-SomaCare replaces app friction with an empathetic, zero-touch voice companion for the senior, paired with an automated pharmacy fulfillment and InsurTech engine for the family.
+This is the senior’s simple daily view: voice-assisted medication reminders, a large microphone control, visible one-tap actions, today’s medication schedule, an appointment summary, and emergency contact access. The senior can confirm a dose or ask for help directly. Family members can assist with setup, but the person receiving care can still see and respond to their own routine.
 
-### Key Capabilities:
-1. **📦 SomaBox™ Ambient Tray Sentinel (The ₹499 Smart Box):**
-   - Turns any cheap plastic 7-day pill organizer into a computer-vision dispenser using a $4 ESP32-CAM or phone stand.
-   - **Continuous Camera Feed & Action Tracking:** Watches compartments and hand movements in real-time.
-   - **Overdose Intercept:** Counts tablets in the senior's hand. If $\ge 2$ pills are lifted, device shouts: *"Babuji STOP! That's wrong! You took out TWO tablets from the morning box. Put one back!"*
-   - **Wrong Compartment Guard:** Warns if the senior opens the Night slot during morning hours.
-   - **Emergency Caretaker Dispatch:** Automatically fires a high-priority WhatsApp alert to the primary caretaker with a snapshot.
-2. **Zero-Touch Conversational Voice (Hinglish/Indian English):**
-   - Natural spoken check-ins ("Namaste Babuji, did you take your morning sugar tablet?").
-   - Two-way voice dialogue using Web Speech API (zero latency, native browser support).
-3. **Multimodal Pill & Prescription Vision OCR:**
-   - Hold up a blister pack or medicine strip to the camera lens.
-   - AI extracts drug name, dosage, checks against active doctor prescriptions, and confirms safety.
-4. **Voice Auto-Refill (The Commerce Engine):**
-   - When a medicine reaches $\le 3$ pills, AI verbally prompts: *"Babuji, only 2 tablets left of Glycomet. Shall I order a 30-day refill from Tata 1mg for ₹245?"*
-   - Senior verbally confirms $\rightarrow$ Order dispatched directly to caregiver's card.
-5. **Caregiver Peace-of-Mind Portal & InsurTech Scorecard:**
-   - Live Heartbeat with verified logs and acoustic sentiment analysis ("Cheerful", "Confused", "Lethargic").
-   - InsurTech compliance certificate export granting 12% health insurance premium rebates for verified $\ge 90\%$ adherence.
+The hands-free voice option uses the browser’s speech recognition. The senior or a helper must tap **Enable hands-free voice** and allow microphone access in the browser. After permission is granted, say **“Soma”** followed by a request. A visible control turns listening off. Browser support varies, so the large on-screen actions remain available as a fallback. A webpage cannot silently enable a device microphone or listen before the user grants permission.
 
----
+### 2. SomaBox Smart Tray
 
-## 💰 The Defensible Business Model
-| Revenue Stream | Target Persona | Pricing / Take-Rate |
-| :--- | :--- | :--- |
-| **B2C Distance Caregiver SaaS** | 30M+ working tech professionals / NRIs living away from parents | ₹1,499 / month ($19/mo) |
-| **Hardware Bundle (SomaBox)** | ₹499 plastic box + micro-cam bundled with 6-month subscription | High conversion & physical stickiness |
-| **Pharmacy Refill Commerce** | Repeat monthly chronic prescriptions fulfilled via Tata 1mg & Apollo | 12%–18% affiliate commission on recurring GMV |
-| **B2B InsurTech / Hospital Readmissions** | Health insurers (Star Health, Care, HDFC Ergo) | ₹4,200 annual rebate per policyholder for cutting ICU admissions |
+This section demonstrates the optional physical medicine-tray companion: slot activity, camera concepts, and safety scenarios such as a wrong compartment or multiple pills. It is a distinct device-oriented view so seniors do not need to use the camera and hardware controls as part of their normal daily app flow.
 
----
+### 3. Caregiver Portal
 
-## ⚡ 2-Minute Demo Script for Hackathon Judges
+This is the detailed management view for an adult child, family member, or professional caregiver. It includes adherence history, medication and refill information, appointment planning, family access roles, and reminder preferences. The **Care Setup** panel lets the helper prepare a family invite, choose which email reminders to configure, and add an appointment. This separates occasional administrative work from the senior’s daily experience.
 
-1. **Open the App:** Navigate to `http://localhost:3000`.
-2. **Step 1 - Voice Check-in:** Click `1. Voice Check-in` in the floating demo runner. Show the natural spoken dialogue.
-3. **Step 2 - The Killer Feature: SomaBox™ Smart Tray:** Switch to **`2. SomaBox™ Smart Tray`** in the top navigation.
-   - Show the 4-slot medicine organizer with live micro-cam tracking.
-   - Click **`Scenario 2 (Hazard): Babuji pulls out 2 Pills!`**
-   - Watch the computer vision detect 2 pills, trigger the loud voice alert (*"Babuji STOP! That's wrong!"*), and immediately dispatch the emergency WhatsApp alert to Rahul (+91 98450 12345).
-   - Click **`Scenario 3 (Wrong Slot)`** to show what happens if he opens the Night compartment in the morning.
-4. **Step 3 - Pill Vision OCR:** Click `2. Pill Vision OCR` to show the blister pack camera scanner.
-5. **Step 4 - Voice Auto-Refill (Commerce):** Click `5. Voice Refill (1mg)` to show the 1-click reorder via Tata 1mg.
-6. **Step 5 - Caregiver Portal:** Switch to **`3. Caregiver Portal`** to show real-time adherence logs, pharmacy delivery tracking, and the **InsurTech Compliance Certificate**.
-7. **Step 6 - Pitch Deck:** Click **"Pitch & Business"** to show unit economics and margins.
+The setup and service integrations in this prototype are demonstrations. Passcodes do not authenticate accounts, and reminder preferences do not send email. Appointment, pharmacy, WhatsApp, camera, and insurance actions may show simulated states rather than contacting real services. The senior remains the care recipient and should be included in decisions about their care and who can access their information.
 
----
+## Run locally
 
-## 🛠️ Tech Stack
-- **Framework:** Next.js 14 (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS (Accessible high-contrast elderly design)
-- **Icons:** Lucide React
-- **Voice Intelligence:** Web Speech SpeechSynthesis & SpeechRecognition
-- **Computer Vision:** Edge Micro-Vision Neural Net simulation + MediaDevices Webcam API
-- **Dev Server:** `http://localhost:3000`
+Requirements: Node.js 20 or newer and npm.
+
+```bash
+npm ci
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). To try voice, open the **Senior Voice** section, choose **Enable hands-free voice**, and allow microphone access when the browser asks. Try **“Soma, what medicine should I take?”** Use **Turn voice off** to stop microphone listening.
+
+Speech recognition works only in browsers that implement the Web Speech API and may require a secure context. `localhost` is treated as a secure context by modern browsers. If voice recognition is unavailable or denied, use the large visible actions.
+
+## Run checks
+
+```bash
+npm test
+npx tsc --noEmit
+npm run build
+```
+
+## Stack
+
+- Next.js 14 App Router and React
+- TypeScript and Tailwind CSS
+- Lucide icons
+- Browser speech synthesis and speech recognition APIs
+- Simulated SomaBox camera and pharmacy workflows
+
+## Demo navigation
+
+The top navigation switches between **Senior Voice**, **SomaBox Smart Tray**, and **Caregiver Portal**. Demo scenarios are available in the floating demo controls. Use them to demonstrate voice check-in, pill vision, wrong-slot and double-dose safety responses, and refill flows. These scenarios are simulations, not live clinical or fulfillment services.
