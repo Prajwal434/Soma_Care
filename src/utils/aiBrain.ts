@@ -1,13 +1,34 @@
 import { Medication, AdherenceLog, PharmacyOrder } from '../types';
 import { SecurityGuard } from './security';
+import { getBoxSlot, getNextScheduledMedication } from './demoSetup';
 
 export interface AIResponse {
   spokenText: string;
   displayText: string;
-  actionTaken?: 'med_taken' | 'double_dose_blocked' | 'refill_confirmed' | 'escalation_alert' | 'scan_prompt';
+  actionTaken?: 'med_taken' | 'double_dose_blocked' | 'refill_confirmed' | 'refill_inquiry' | 'next_medication' | 'box_location' | 'escalation_alert' | 'scan_prompt';
   affectedMedId?: string;
   newLog?: AdherenceLog;
   newOrder?: PharmacyOrder;
+}
+
+function buildDoubleDoseResponse(morningMed: Medication): AIResponse {
+  const newLog: AdherenceLog = {
+    id: `log-${Date.now()}`,
+    timestamp: 'Just now',
+    medicationName: morningMed.name,
+    status: 'warning',
+    notes: `CRITICAL SAFETY INTERCEPT: Babuji attempted to take ${morningMed.name} again. Blocked to prevent hypoglycemia. Caregiver notified.`,
+    verificationMethod: 'voice',
+    moodDetected: 'confused',
+  };
+
+  return {
+    spokenText: `Wait, Babuji! Please do not take that pill! You already took your morning ${morningMed.name} at ${morningMed.takenAt || '9:12 AM'}. Taking another can drop your blood sugar dangerously low. Please take a sip of water and rest.`,
+    displayText: `⚠️ SAFETY LOCK ENGAGED: Blocked duplicate dose of ${morningMed.name}. Morning dose was already logged at ${morningMed.takenAt || '9:12 AM'}. Caregiver notified via WhatsApp.`,
+    actionTaken: 'double_dose_blocked',
+    affectedMedId: morningMed.id,
+    newLog,
+  };
 }
 
 export function processSeniorUtterance(
@@ -27,10 +48,18 @@ export function processSeniorUtterance(
 
   const lower = cleanInput.toLowerCase().trim();
 
+  const possibleDoubleDose =
+    /\b(again|dobara|another|one more|sugar tablet)\b/i.test(lower) &&
+    /\b(take|taking|khau|kha raha)\b/i.test(lower);
+  if (possibleDoubleDose) {
+    const morningMed = medications.find(m => m.timeSlot === 'Morning');
+    if (morningMed?.takenToday) return buildDoubleDoseResponse(morningMed);
+  }
+
   // 1. Check if agreeing to an active auto-refill prompt (COMMERCE ENGINE HOOK)
   if (
     activeRefillPromptMedId && 
-    (lower.includes('yes') || lower.includes('order') || lower.includes('haan') || lower.includes('theek hai') || lower.includes('kharid') || lower.includes('sure') || lower.includes('kar do'))
+    /\b(yes|yeah|haan|theek hai|kharid do|sure|go ahead|please order|order it|place the order|kar do)\b/i.test(lower)
   ) {
     const med = medications.find(m => m.id === activeRefillPromptMedId);
     if (med) {
@@ -67,31 +96,50 @@ export function processSeniorUtterance(
     }
   }
 
-  // 2. Check for Double-Dose Attempt (SAFETY RISK HOOK)
-  if (
-    (lower.includes('again') || lower.includes('dobara') || lower.includes('another') || lower.includes('one more') || lower.includes('sugar tablet')) &&
-    (lower.includes('take') || lower.includes('taking') || lower.includes('khau') || lower.includes('kha raha'))
-  ) {
-    const morningMed = medications.find(m => m.timeSlot === 'Morning');
-    if (morningMed && morningMed.takenToday) {
-      const newLog: AdherenceLog = {
-        id: `log-${Date.now()}`,
-        timestamp: 'Just now',
-        medicationName: morningMed.name,
-        status: 'warning',
-        notes: `CRITICAL SAFETY INTERCEPT: Babuji attempted to take ${morningMed.name} again. Blocked to prevent hypoglycemia. Caregiver notified.`,
-        verificationMethod: 'voice',
-        moodDetected: 'confused',
-      };
-
+  // 2a. Answer low-stock questions before the generic “which pill?” scan prompt.
+  if (/\b(refill|refill|running out|low stock|need to order|needs ordering)\b/i.test(lower)) {
+    const lowStockMeds = medications.filter(med => med.remainingPills <= med.refillThreshold);
+    if (lowStockMeds.length === 0) {
       return {
-        spokenText: `Wait, Babuji! Please do not take that pill! You already took your morning ${morningMed.name} at ${morningMed.takenAt || '9:12 AM'}. Taking another can drop your blood sugar dangerously low. Please take a sip of water and rest.`,
-        displayText: `⚠️ SAFETY LOCK ENGAGED: Blocked duplicate dose of ${morningMed.name}. Morning dose was already logged at ${morningMed.takenAt || '9:12 AM'}. Caregiver notified via WhatsApp.`,
-        actionTaken: 'double_dose_blocked',
-        affectedMedId: morningMed.id,
-        newLog,
+        spokenText: 'Your saved medicine list does not show any low-stock medicines right now. I can ask your caregiver to check the supplies if you are unsure.',
+        displayText: 'No medicines are currently below their refill threshold in the saved list.',
+        actionTaken: 'refill_inquiry',
       };
     }
+    const med = lowStockMeds[0];
+    return {
+      spokenText: `${med.name} is running low. The saved list shows ${med.remainingPills} tablets left. Would you like me to request a refill from your caregiver? I will wait for your confirmation.`,
+      displayText: `Low stock: ${med.name} has ${med.remainingPills} tablets left. Refill requires your confirmation.`,
+      actionTaken: 'refill_inquiry',
+      affectedMedId: med.id,
+    };
+  }
+
+  // 2b. Answer what is next from the saved schedule and map it to the demo tray.
+  const asksNextDose = !possibleDoubleDose && /\b(next|due|should i take|what.*take|which.*take|medicine.*take)\b/i.test(lower);
+  const asksBoxLocation = /\b(box|compartment|slot|where.*(pill|medicine|tablet|it)|where.*find)\b/i.test(lower);
+  if (asksNextDose || asksBoxLocation) {
+    const nextMed = getNextScheduledMedication(medications);
+    if (!nextMed) {
+      return {
+        spokenText: 'Your saved schedule shows that all medicines for today are marked as taken.',
+        displayText: 'All scheduled medicines are marked taken for today.',
+        actionTaken: 'next_medication',
+      };
+    }
+    const slot = getBoxSlot(nextMed.timeSlot);
+    const location = slot ? `${slot}, ${nextMed.timeSlot} compartment` : `${nextMed.timeSlot} section`;
+    const locationResponse = asksBoxLocation;
+    return {
+      spokenText: locationResponse
+        ? `Based on your saved schedule, your next medicine is ${nextMed.name}, at ${nextMed.scheduledTime}. In this SomaBox demo, it is in ${location}. I am opening the box map so you can see it highlighted.`
+        : `Based on your saved schedule, your next medicine is ${nextMed.name} at ${nextMed.scheduledTime}, in the ${nextMed.timeSlot.toLowerCase()}.`,
+      displayText: locationResponse
+        ? `Next dose: ${nextMed.name} at ${nextMed.scheduledTime}. SomaBox location: ${location}. The matching tray slot is highlighted.`
+        : `Next scheduled dose: ${nextMed.name} at ${nextMed.scheduledTime} (${nextMed.timeSlot}).`,
+      actionTaken: locationResponse ? 'box_location' : 'next_medication',
+      affectedMedId: nextMed.id,
+    };
   }
 
   // 3. Check for Confusion / "Which pill should I take?"

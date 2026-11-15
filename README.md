@@ -10,7 +10,7 @@ The person receiving care remains at the centre of decisions, but they are not a
 
 This is the senior’s simple daily view: voice-assisted medication reminders, a large microphone control, visible one-tap actions, today’s medication schedule, an appointment summary, and emergency contact access. The senior can confirm a dose or ask for help directly. Family members can assist with setup, but the person receiving care can still see and respond to their own routine.
 
-The hands-free voice option uses the browser’s speech recognition. The senior or a helper must tap **Enable hands-free voice** and allow microphone access in the browser. After permission is granted, say **“Soma”** followed by a request. A visible control turns listening off. Browser support varies, so the large on-screen actions remain available as a fallback. A webpage cannot silently enable a device microphone or listen before the user grants permission.
+The hands-free voice option uses the browser’s speech recognition. The senior or a helper must tap **Enable hands-free voice** and allow microphone access in the browser. Say **“Soma”** once to wake the companion, then speak normally without repeating the wake word. A visible control turns listening off. Browser support varies, so the large on-screen actions remain available as a fallback. A webpage cannot silently enable a device microphone or listen before the user grants permission.
 
 ### 2. SomaBox Smart Tray
 

@@ -16,11 +16,13 @@ import {
 } from 'lucide-react';
 import { Medication, AdherenceLog, SeniorProfile } from '../types';
 import { SpeechService } from '../utils/speech';
+import { getBoxSlot, getNextScheduledMedication } from '../utils/demoSetup';
 
 interface SmartBoxSentinelProps {
   profile: SeniorProfile;
   medications: Medication[];
   onAddLog: (log: AdherenceLog) => void;
+  highlightedMedicationId?: string;
 }
 
 export type BoxScenario = 'safe_single' | 'hazard_double' | 'hazard_wrong_slot' | 'idle';
@@ -29,12 +31,22 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
   profile,
   medications,
   onAddLog,
+  highlightedMedicationId,
 }) => {
   const [activeScenario, setActiveScenario] = useState<BoxScenario>('idle');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [alertDispatched, setAlertDispatched] = useState<string | null>(null);
   const [useRealWebcam, setUseRealWebcam] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const nextMedication = getNextScheduledMedication(medications);
+  const highlightedMedication = medications.find(med => med.id === highlightedMedicationId) || nextMedication;
+  const highlightedSlot = highlightedMedication ? getBoxSlot(highlightedMedication.timeSlot) : undefined;
+  const boxSlots = [
+    { label: 'Morning', slot: 'Slot 1' },
+    { label: 'Afternoon', slot: 'Slot 2' },
+    { label: 'Evening', slot: 'Slot 3' },
+    { label: 'Night', slot: 'Slot 4' },
+  ];
 
   useEffect(() => {
     SpeechService.init();
@@ -137,17 +149,17 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs border border-emerald-500/30 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" /> ₹499 ($6) Smart Hardware Concept
+              <Layers className="w-3.5 h-3.5" /> Interactive Tray Demo
             </span>
             <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/30">
-              ESP32-CAM Micro-Vision
+              Sensor Concept
             </span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             SomaBox™ Ambient Tray Sentinel
           </h1>
           <p className="text-slate-300 text-sm mt-1 max-w-2xl">
-            Turns any cheap plastic medicine organizer into a real-time vision dispenser. Continuous camera sensor watches compartments and hand gestures, immediately warning Babuji if the wrong pill or double doses are picked up.
+            Shows how a connected tray could map scheduled medicines to compartments and flag simulated safety events. This prototype does not yet detect pills or hand movements from a camera.
           </p>
         </div>
 
@@ -163,14 +175,43 @@ export const SmartBoxSentinel: React.FC<SmartBoxSentinelProps> = ({
         </button>
       </div>
 
+      <section className="bg-emerald-950/40 border-2 border-emerald-500/40 rounded-3xl p-5 sm:p-7 space-y-4" aria-labelledby="box-map-title">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-emerald-300 font-bold">SomaBox demo proof</p>
+            <h2 id="box-map-title" className="text-2xl font-extrabold text-white">Find the next medicine in the tray</h2>
+          </div>
+          {highlightedMedication && highlightedSlot ? (
+            <div className="rounded-2xl bg-amber-400 px-5 py-3 text-slate-950">
+              <p className="text-xs font-bold uppercase">Next dose • {highlightedSlot}</p>
+              <p className="text-xl font-black">{highlightedMedication.name}</p>
+              <p className="text-sm font-semibold">{highlightedMedication.timeSlot} • {highlightedMedication.scheduledTime}</p>
+            </div>
+          ) : <p className="text-emerald-100">No pending medicine in today&apos;s saved schedule.</p>}
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {boxSlots.map(({ label, slot }) => {
+            const med = medications.find(item => item.timeSlot === label);
+            const selected = !!med && med.id === highlightedMedication?.id;
+            return <div key={slot} className={`rounded-2xl border-2 p-4 min-h-28 ${selected ? 'bg-amber-400 border-amber-200 text-slate-950 ring-4 ring-amber-300/30' : 'bg-slate-900/80 border-slate-700 text-white'}`}>
+              <p className={`text-xs font-black uppercase tracking-wide ${selected ? 'text-slate-800' : 'text-emerald-300'}`}>{slot} • {label}</p>
+              <p className="font-bold mt-2">{med?.name || 'No medicine assigned'}</p>
+              {med && <p className={`text-xs mt-1 ${selected ? 'text-slate-800' : 'text-slate-400'}`}>{med.scheduledTime} • {med.takenToday ? 'Taken' : 'Not yet taken'}</p>}
+              {selected && <p className="text-xs font-black mt-2">← NEXT DOSE</p>}
+            </div>;
+          })}
+        </div>
+        <p className="text-xs text-slate-400">Demo mapping: scheduled time of day points to one of four labeled tray compartments. Real pill detection requires connected tray sensors or a camera model; this screen visualizes the schedule mapping.</p>
+      </section>
+
       {/* Main Interactive Vision Stage */}
       <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative">
         {/* Top Camera Status Bar */}
         <div className="bg-slate-950/90 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 text-xs font-mono">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-emerald-400 font-bold">SOMABOX-CAM-01 • ONLINE</span>
-            <span className="text-slate-500 hidden sm:inline">| 1080p @ 30FPS • Edge AI Neural Net</span>
+            <span className="text-emerald-400 font-bold">{useRealWebcam ? 'CAMERA PREVIEW • CONNECTED' : 'VIRTUAL TRAY • DEMO MODE'}</span>
+            <span className="text-slate-500 hidden sm:inline">| Schedule mapping • sensor events simulated</span>
           </div>
           <div className="text-xs font-mono text-slate-400">
             Target User: <strong className="text-white">{profile.nickname}</strong>

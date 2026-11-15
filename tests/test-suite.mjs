@@ -8,7 +8,7 @@ import { processSeniorUtterance } from '../src/utils/aiBrain.ts';
 import { SecurityGuard } from '../src/utils/security.ts';
 import { IoTCameraManager } from '../src/utils/iotCamera.ts';
 import { initialMedications, initialLogs } from '../src/data/mockData.ts';
-import { createDemoPasscode, extractWakeWordCommand, getEnabledReminderLabels, isValidEmail } from '../src/utils/demoSetup.ts';
+import { createDemoPasscode, extractWakeWordCommand, getBoxSlot, getEnabledReminderLabels, getNextScheduledMedication, isValidEmail, parseWakeWordUtterance } from '../src/utils/demoSetup.ts';
 
 describe('SomaCare Platform Test Suite: Quality, Security, Stress & Contracts', () => {
 
@@ -45,6 +45,31 @@ describe('SomaCare Platform Test Suite: Quality, Security, Stress & Contracts', 
       assert.ok(response.newOrder, 'Order must be generated');
       assert.equal(response.newOrder.medicationName, 'Glycomet-GP 1 (Pack of 30)');
       assert.equal(response.newOrder.price, 245);
+    });
+
+    test('1.5 Refill questions identify low stock without placing an order', () => {
+      const response = processSeniorUtterance('Which medicine needs a refill?', initialMedications, initialLogs, 'med-1');
+      assert.equal(response.actionTaken, 'refill_inquiry');
+      assert.equal(response.affectedMedId, 'med-1');
+      assert.equal(response.newOrder, undefined);
+      assert.match(response.spokenText, /3 tablets left/i);
+      assert.match(response.spokenText, /wait for your confirmation/i);
+    });
+
+    test('1.6 Next medicine questions return the saved dose and box location', () => {
+      const nextDose = processSeniorUtterance('Which medicine should I take next?', initialMedications, initialLogs, null);
+      assert.equal(nextDose.actionTaken, 'next_medication');
+      assert.equal(nextDose.affectedMedId, 'med-2');
+      assert.match(nextDose.spokenText, /Telma 40 at 01:30 PM/i);
+
+      const location = processSeniorUtterance('Where is it in the box?', initialMedications, initialLogs, null);
+      assert.equal(location.actionTaken, 'box_location');
+      assert.match(location.spokenText, /Slot 2, Afternoon compartment/i);
+    });
+
+    test('1.7 Double-dose safety still takes priority over “which medicine” questions', () => {
+      const response = processSeniorUtterance('Which sugar tablet should I take again?', initialMedications, initialLogs, null);
+      assert.equal(response.actionTaken, 'double_dose_blocked');
     });
   });
 
@@ -261,13 +286,20 @@ describe('SomaCare Platform Test Suite: Quality, Security, Stress & Contracts', 
       assert.deepEqual(labels, ['upcoming doses', 'appointments']);
     });
 
-    test('9.4 Wake-word mode ignores unrelated speech and extracts Soma commands', () => {
-      assert.equal(extractWakeWordCommand('I took my medicine'), null);
+    test('9.4 Wake-word mode ignores unrelated speech then stays awake for normal follow-up speech', () => {
+      assert.deepEqual(parseWakeWordUtterance('I took my medicine', false), { awake: false, command: null });
+      assert.deepEqual(parseWakeWordUtterance('Soma', false), { awake: true, command: '' });
+      assert.deepEqual(parseWakeWordUtterance('Which medicine needs a refill?', true), { awake: true, command: 'Which medicine needs a refill?' });
       assert.equal(extractWakeWordCommand('Soma, I took my medicine'), 'I took my medicine');
-      assert.equal(extractWakeWordCommand('Hey Soma'), '');
     });
 
-    test('9.5 OpenAPI documents demo setup plus appointment and medication management', () => {
+    test('9.5 Maps the next pending medicine to its labeled box compartment', () => {
+      const medication = getNextScheduledMedication(initialMedications);
+      assert.equal(medication?.id, 'med-2');
+      assert.equal(getBoxSlot(medication.timeSlot), 'Slot 2');
+    });
+
+    test('9.6 OpenAPI documents demo setup plus appointment and medication management', () => {
       const specPath = path.resolve(process.cwd(), 'src/spec/openapi.json');
       const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
       assert.ok(spec.paths['/care/access-invites']?.post);
@@ -281,7 +313,7 @@ describe('SomaCare Platform Test Suite: Quality, Security, Stress & Contracts', 
       assert.equal(spec.components.schemas.ReminderPreferencesResponse.properties.emailDeliveryConnected.const, false);
     });
 
-    test('9.6 Care setup UI exposes invite, configurable alerts, appointment form, and demo disclosures', () => {
+    test('9.7 Care setup UI exposes invite, configurable alerts, appointment form, and demo disclosures', () => {
       const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/CareSetupPanel.tsx'), 'utf8');
       assert.match(source, /Prepare family invite/);
       assert.match(source, /Upcoming dose reminders/);
@@ -293,7 +325,10 @@ describe('SomaCare Platform Test Suite: Quality, Security, Stress & Contracts', 
       const seniorSource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/ElderMode.tsx'), 'utf8');
       assert.match(seniorSource, /Enable hands-free voice/);
       assert.match(seniorSource, /allow microphone access/);
-      assert.match(seniorSource, /Then say.*Soma/);
+      assert.match(seniorSource, /Say <strong>“Soma”<\/strong> once.*speak normally/);
+      const boxSource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/SmartBoxSentinel.tsx'), 'utf8');
+      assert.match(boxSource, /Find the next medicine in the tray/);
+      assert.match(boxSource, /schedule mapping.*simulated/i);
     });
   });
 });

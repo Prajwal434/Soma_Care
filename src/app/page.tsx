@@ -19,6 +19,7 @@ import { SpeechService } from '../utils/speech';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<'elder' | 'somabox' | 'caregiver'>('elder');
+  const [highlightedMedicationId, setHighlightedMedicationId] = useState<string | undefined>();
   const [profile, setProfile] = useState(initialSeniorProfile);
   const [medications, setMedications] = useState<Medication[]>(initialMedications);
   const [logs, setLogs] = useState<AdherenceLog[]>(initialLogs);
@@ -165,12 +166,17 @@ export default function Home() {
             onUpdateMedications={setMedications}
             onAddLog={handleAddLog}
             onAddOrder={handleAddOrder}
+            onOpenBox={(medicationId) => {
+              setHighlightedMedicationId(medicationId);
+              setCurrentView('somabox');
+            }}
           />
         ) : currentView === 'somabox' ? (
           <SmartBoxSentinel
             profile={profile}
             medications={medications}
             onAddLog={handleAddLog}
+            highlightedMedicationId={highlightedMedicationId}
           />
         ) : (
           <CaregiverMode

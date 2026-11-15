@@ -15,7 +15,7 @@ import {
 import { Medication, AdherenceLog, PharmacyOrder, SeniorProfile } from '../types';
 import { SpeechService } from '../utils/speech';
 import { processSeniorUtterance } from '../utils/aiBrain';
-import { extractWakeWordCommand } from '../utils/demoSetup';
+import { parseWakeWordUtterance } from '../utils/demoSetup';
 import { PillScannerModal } from './PillScannerModal';
 
 interface ElderModeProps {
@@ -26,6 +26,7 @@ interface ElderModeProps {
   onUpdateMedications: (meds: Medication[]) => void;
   onAddLog: (log: AdherenceLog) => void;
   onAddOrder: (order: PharmacyOrder) => void;
+  onOpenBox: (medicationId: string) => void;
 }
 
 export const ElderMode: React.FC<ElderModeProps> = ({
@@ -35,6 +36,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
   onUpdateMedications,
   onAddLog,
   onAddOrder,
+  onOpenBox,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -44,6 +46,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
   const wakeRestartTimerRef = useRef<number | null>(null);
   const wakeEnabledRef = useRef(false);
   const suspendWakeRestartRef = useRef(false);
+  const wakeArmedRef = useRef(false);
   const [seniorSpeech, setSeniorSpeech] = useState<string>('');
   const [aiSpeechResponse, setAiSpeechResponse] = useState<string>(
     `Namaste ${profile.nickname}! It is 10:00 AM. Did you take your morning sugar tablet after breakfast?`
@@ -56,6 +59,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
     SpeechService.init();
     return () => {
       wakeEnabledRef.current = false;
+      wakeArmedRef.current = false;
       if (wakeRestartTimerRef.current) window.clearTimeout(wakeRestartTimerRef.current);
       wakeListenerRef.current?.stop();
     };
@@ -146,6 +150,10 @@ export const ElderMode: React.FC<ElderModeProps> = ({
         setIsScannerOpen(true);
       }, 1000);
     }
+
+    if (response.actionTaken === 'box_location' && response.affectedMedId) {
+      onOpenBox(response.affectedMedId);
+    }
   };
 
   const startWakeWordListener = () => {
@@ -155,13 +163,15 @@ export const ElderMode: React.FC<ElderModeProps> = ({
       (transcript, isFinal) => {
         setSeniorSpeech(transcript);
         if (!isFinal) return;
-        const command = extractWakeWordCommand(transcript);
-        if (command === null) return;
-        if (command) {
+        const wakeResult = parseWakeWordUtterance(transcript, wakeArmedRef.current);
+        if (!wakeResult.awake) return;
+        wakeArmedRef.current = true;
+        if (wakeResult.command) {
+          const command = wakeResult.command;
           handleProcessUtterance(command);
         } else {
-          setAiSpeechResponse('I am here. What would you like help with?');
-          handleSpeak('I am here. What would you like help with?');
+          setAiSpeechResponse('I am listening. What would you like help with?');
+          handleSpeak('I am listening. What would you like help with?');
         }
       },
       (error) => {
@@ -169,6 +179,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
         setIsListening(false);
         if (wakeEnabledRef.current) {
           wakeEnabledRef.current = false;
+          wakeArmedRef.current = false;
           setVoiceEnabled(false);
           setAiSpeechResponse('Microphone access is unavailable. Check your browser permissions, or continue with the large on-screen buttons.');
         }
@@ -187,13 +198,15 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 
   const handleEnableWakeWord = () => {
     wakeEnabledRef.current = true;
+    wakeArmedRef.current = false;
     setVoiceEnabled(true);
-    setAiSpeechResponse('Hands-free voice is on. Say “Soma” followed by your request.');
+    setAiSpeechResponse('Hands-free voice is on. Say “Soma” once, then speak normally without repeating it.');
     startWakeWordListener();
   };
 
   const handleDisableWakeWord = () => {
     wakeEnabledRef.current = false;
+    wakeArmedRef.current = false;
     setVoiceEnabled(false);
     setIsListening(false);
     if (wakeRestartTimerRef.current) window.clearTimeout(wakeRestartTimerRef.current);
@@ -238,7 +251,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
           <div className="max-w-2xl mx-auto space-y-3">
             <p className="text-sm font-bold uppercase tracking-wide text-amber-200">Hands-free voice companion</p>
             <h2 id="voice-start-title" className="text-2xl sm:text-3xl font-extrabold text-white">Enable SomaCare wake word</h2>
-            <p className="text-base sm:text-lg text-amber-100">Tap once and allow microphone access when your browser asks. Then say <strong>“Soma”</strong> followed by what you need. The microphone stays on until you turn hands-free voice off.</p>
+            <p className="text-base sm:text-lg text-amber-100">Tap once and allow microphone access when your browser asks. Say <strong>“Soma”</strong> once to wake me, then speak normally without repeating it. The microphone stays on until you turn hands-free voice off.</p>
             <button onClick={handleEnableWakeWord} className="min-h-16 w-full sm:w-auto px-8 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xl font-extrabold shadow-lg focus:outline-none focus:ring-4 focus:ring-white/70">
               <Mic className="w-6 h-6 inline-block mr-2 align-middle" />Enable hands-free voice
             </button>
