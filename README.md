@@ -96,7 +96,10 @@ Open [http://localhost:3000](http://localhost:3000). In **Senior Voice**, choose
 npm run typecheck
 npm run lint
 npm test
+npx playwright install chromium
+npm run test:e2e
 npm run build
+npm audit --audit-level=moderate
 ```
 
 ## Demo navigation

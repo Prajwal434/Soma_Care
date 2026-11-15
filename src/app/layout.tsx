@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "SomaCare (साथी) | Voice-First Elder Care Prototype",
-  description: "Zero-touch conversational voice companion for seniors with automatic pharmacy fulfillment for families.",
+  description: "A voice-first elder care prototype for shared medication routines, appointments, and caregiver coordination.",
 };
 
 export default function RootLayout({

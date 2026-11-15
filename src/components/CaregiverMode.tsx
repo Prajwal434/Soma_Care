@@ -130,7 +130,7 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
             <label className="text-sm text-slate-300">Refill reminder threshold<input name="refillThreshold" type="number" min="0" required defaultValue={editingMedication?.refillThreshold ?? 5} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
           </div>
           <label className="block text-sm text-slate-300">Instructions from prescription<textarea name="instructions" rows={2} defaultValue={editingMedication?.instructions} className="mt-1 w-full rounded-xl bg-slate-950 border border-slate-600 px-4 py-3 text-white" /></label>
-          <button type="submit" className="min-h-12 px-6 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold">Save medicine schedule</button>
+          <button type="submit" className="min-h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold">Save medicine schedule</button>
         </form>
       )}
 
@@ -231,7 +231,7 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
           <div className="flex flex-wrap gap-2 mt-3">
             <span className="px-3 py-2 rounded-xl bg-slate-800 text-sm text-white">Rahul • Caregiver • Edit</span>
             <span className="px-3 py-2 rounded-xl bg-slate-800 text-sm text-white">Anita • Family • View</span>
-            <button onClick={() => setShowCareSetup(true)} className="px-3 py-2 rounded-xl bg-emerald-600 text-sm font-bold text-white">Prepare demo invite</button>
+          <button onClick={() => setShowCareSetup(true)} className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-sm font-bold text-slate-950">Prepare demo invite</button>
           </div>
         </section>
       </div>
@@ -242,7 +242,7 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
           <button aria-expanded={showCareSetup} onClick={() => setShowCareSetup(value => !value)} className="min-h-12 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold">{showCareSetup ? 'Close setup' : 'Open care setup'}</button>
         </div>
         {showCareSetup && <div className="mt-5"><CareSetupPanel /></div>}
-        {!showCareSetup && <p className="text-xs text-slate-500 mt-3">Prototype mode: invites, passcodes, appointments, and email preferences are simulated locally; delivery and authentication are not connected.</p>}
+        {!showCareSetup && <p className="text-xs text-slate-300 mt-3">Prototype mode: invites, passcodes, appointments, and email preferences are simulated locally; delivery and authentication are not connected.</p>}
       </section>
 
       {/* Tabs Navigation */}

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test, describe } from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
+import SwaggerParser from '@apidevtools/swagger-parser';
 
 // Import compiled or source modules
 import { processSeniorUtterance } from '../src/utils/aiBrain.ts';
@@ -189,13 +190,14 @@ describe('SomaCare Prototype Test Suite: Decision Logic, Limits & Contracts', ()
   // SECTION 5: OPENAPI SPECIFICATION CONTRACT AUDIT
   // ==========================================
   describe('5. OpenAPI Specification Schema Audit', () => {
-    test('5.1 Should ensure openapi.json exists and adheres to valid 3.1.0 schema', () => {
+    test('5.1 Validates the OpenAPI document against its full schema', async () => {
       const specPath = path.resolve(process.cwd(), 'src/spec/openapi.json');
       assert.ok(fs.existsSync(specPath), 'openapi.json must exist');
       
       const rawSpec = fs.readFileSync(specPath, 'utf8');
       const parsed = JSON.parse(rawSpec);
-      assert.equal(parsed.openapi, '3.1.0');
+      const validated = await SwaggerParser.validate(parsed);
+      assert.equal(validated.openapi, '3.1.0');
       assert.ok(parsed.paths['/somabox/telemetry'], 'SomaBox telemetry path must be documented');
       assert.ok(parsed.paths['/voice/interpret'], 'Voice interpret path must be documented');
       assert.ok(parsed.paths['/pharmacy/refill'], 'Pharmacy refill path must be documented');

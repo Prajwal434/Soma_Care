@@ -81,8 +81,8 @@ export const SystemAuditModal: React.FC<SystemAuditModalProps> = ({ isOpen, onCl
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
                   <div>
-                    <h4 className="text-base font-bold text-white">31 automated test cases</h4>
-                    <p className="text-xs text-slate-300">Medication intent, refill confirmation, wake-word parsing, box mapping, security utilities, setup validation, and API contract checks.</p>
+                    <h4 className="text-base font-bold text-white">31 unit cases + browser accessibility checks</h4>
+                    <p className="text-xs text-slate-300">Unit coverage includes medication intent, refill confirmation, wake-word parsing, box mapping, security utilities, setup validation, and full OpenAPI schema validation.</p>
                   </div>
                 </div>
                 <span className="font-mono text-xs font-bold px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30">
@@ -92,7 +92,7 @@ export const SystemAuditModal: React.FC<SystemAuditModalProps> = ({ isOpen, onCl
 
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 font-mono text-xs space-y-2 text-slate-300">
                 <p className="text-slate-300">The suite tests pure logic and source/spec contracts. It does not exercise a production backend, live email delivery, a real tray, or end-to-end browser speech recognition.</p>
-                <p className="text-slate-400 mt-3">CI runs typecheck, lint, tests, OpenAPI JSON checks, and a production build on pushes to the main branch.</p>
+                <p className="text-slate-400 mt-3">Playwright checks the senior home at desktop and mobile sizes and the caregiver medication editor on desktop against WCAG 2.1 A/AA rules. CI also runs dependency audit, browser checks, typecheck, lint, unit tests, and a production build on pushes to main.</p>
               </div>
             </div>
           )}

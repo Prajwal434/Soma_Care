@@ -25,11 +25,11 @@ The UI is statically rendered by Next.js and the decision helpers run locally. T
 
 ### Testing
 
-The Node test suite currently passes 31 test cases covering medication intent decisions, double-dose warnings, refill inquiry and demo confirmation, wake-word parsing, box-slot mapping, setup helpers, input-filter examples, telemetry packet boundaries, OpenAPI paths, and the caregiver medicine editor. It does not include automated browser accessibility scans, real speech-recognition tests, camera recognition, external-service integration tests, or clinical validation.
+The Node test suite currently passes 31 test cases covering medication intent decisions, double-dose warnings, refill inquiry and demo confirmation, wake-word parsing, box-slot mapping, setup helpers, input-filter examples, telemetry packet boundaries, full OpenAPI schema validation, and the caregiver medicine editor. Playwright also tests the senior home with axe-core at desktop and mobile sizes and exercises schedule creation in the caregiver view on desktop. Speech recognition, camera recognition, and clinical decision safety are not end-to-end or clinically validated.
 
 ### Accessibility
 
-The senior UI uses large controls, visible text alternatives, status regions, and an optional voice path with a visible off switch. The test suite has basic source and contrast checks, but the app has not had a full WCAG audit, assistive-technology review, or older-adult usability study.
+The senior UI uses large controls, visible text alternatives, status regions, and an optional voice path with a visible off switch. Automated axe-core checks cover WCAG 2.1 A/AA rules on the senior home at desktop and mobile sizes, and the caregiver schedule editor at desktop size. These scans do not replace a full WCAG audit, assistive-technology review, caregiver mobile-flow audit, or older-adult usability study.
 
 ### Problem alignment
 
@@ -42,7 +42,10 @@ npm ci
 npm run typecheck
 npm run lint
 npm test
+npx playwright install chromium
+npm run test:e2e
 npm run build
+npm audit --audit-level=moderate
 ```
 
 These checks validate the repository’s code and contracts. They do not prove clinical safety, real-world adherence improvement, or commercial demand.

@@ -555,7 +555,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
             <p className="text-base text-slate-300">Cardiology • City Care Clinic, Lucknow</p>
             <p className="text-sm text-slate-400 mt-1">Sample appointment. No reminder has been sent. Bring your medicine list.</p>
           </div>
-          <button onClick={() => handleSpeak('Your sample appointment is Thursday, November 19 at 11:30 in the morning with Dr. Meera Kapoor at City Care Clinic. No reminder has been sent.')} className="min-h-14 px-5 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-base font-bold flex items-center justify-center gap-2">
+          <button onClick={() => handleSpeak('Your sample appointment is Thursday, November 19 at 11:30 in the morning with Dr. Meera Kapoor at City Care Clinic. No reminder has been sent.')} className="min-h-14 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-base font-bold flex items-center justify-center gap-2">
             <Volume2 className="w-5 h-5" /> Hear appointment
           </button>
         </div>
