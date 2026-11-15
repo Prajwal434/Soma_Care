@@ -8,6 +8,7 @@ import { processSeniorUtterance } from '../src/utils/aiBrain.ts';
 import { SecurityGuard } from '../src/utils/security.ts';
 import { IoTCameraManager } from '../src/utils/iotCamera.ts';
 import { initialMedications, initialLogs } from '../src/data/mockData.ts';
+import { createDemoPasscode, getEnabledReminderLabels, isValidEmail } from '../src/utils/demoSetup.ts';
 
 describe('SomaCare Platform Test Suite: Quality, Security, Stress & Contracts', () => {
 
@@ -234,6 +235,55 @@ describe('SomaCare Platform Test Suite: Quality, Security, Stress & Contracts', 
       const diabetesMed = initialMedications.find(m => m.name.includes('Glycomet'));
       assert.ok(diabetesMed, 'Glycomet diabetes medication must be tracked');
       assert.equal(diabetesMed.timeSlot, 'Morning');
+    });
+  });
+
+  // ==========================================
+  // SECTION 9: CARE SETUP DEMO FLOWS
+  // ==========================================
+  describe('9. Family access, reminder preferences & appointments', () => {
+    test('9.1 Validates family and reminder email inputs', () => {
+      assert.equal(isValidEmail('rahul@example.com'), true);
+      assert.equal(isValidEmail('not-an-email'), false);
+      assert.equal(isValidEmail('  anita@family.org  '), true);
+    });
+
+    test('9.2 Formats a six-digit demo passcode consistently', () => {
+      assert.equal(createDemoPasscode(482916), '482 916');
+      assert.equal(createDemoPasscode(7), '000 007');
+      assert.equal(createDemoPasscode(1_000_003), '000 003');
+    });
+
+    test('9.3 Includes only selected dose and appointment reminder types', () => {
+      const labels = getEnabledReminderLabels({
+        email: 'rahul@example.com', upcomingDose: true, missedDose: false, appointment: true, reminderMinutes: 30,
+      });
+      assert.deepEqual(labels, ['upcoming doses', 'appointments']);
+    });
+
+    test('9.4 OpenAPI documents demo setup plus appointment and medication management', () => {
+      const specPath = path.resolve(process.cwd(), 'src/spec/openapi.json');
+      const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
+      assert.ok(spec.paths['/care/access-invites']?.post);
+      assert.ok(spec.paths['/care/reminder-preferences']?.put);
+      assert.ok(spec.paths['/care/appointments']?.post);
+      assert.ok(spec.paths['/care/appointments']?.get);
+      assert.ok(spec.paths['/care/medications']?.get);
+      assert.ok(spec.paths['/care/medications']?.post);
+      assert.ok(spec.paths['/care/medications/{medicationId}']?.patch);
+      assert.equal(spec.components.schemas.CareAccessInviteResponse.properties.demoOnly.const, true);
+      assert.equal(spec.components.schemas.ReminderPreferencesResponse.properties.emailDeliveryConnected.const, false);
+    });
+
+    test('9.5 Care setup UI exposes invite, configurable alerts, appointment form, and demo disclosures', () => {
+      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/CareSetupPanel.tsx'), 'utf8');
+      assert.match(source, /Prepare family invite/);
+      assert.match(source, /Upcoming dose reminders/);
+      assert.match(source, /Missed dose alerts/);
+      assert.match(source, /Appointment reminders/);
+      assert.match(source, /Save appointment/);
+      assert.match(source, /no account is created/);
+      assert.match(source, /no email was sent/);
     });
   });
 });

@@ -16,6 +16,7 @@ import {
   Smile 
 } from 'lucide-react';
 import { Medication, AdherenceLog, PharmacyOrder, SeniorProfile } from '../types';
+import { CareSetupPanel } from './CareSetupPanel';
 
 interface CaregiverModeProps {
   profile: SeniorProfile;
@@ -34,8 +35,9 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
   onTriggerRefill,
   onAddPrescription,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'pharmacy' | 'insurance' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pharmacy' | 'insurance' | 'logs' | 'appointments' | 'access'>('overview');
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [showCareSetup, setShowCareSetup] = useState(false);
 
   // Compute adherence stats
   const takenCount = medications.filter(m => m.takenToday).length;
@@ -170,10 +172,40 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="bg-indigo-950/40 border border-indigo-500/30 rounded-3xl p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-indigo-300">Next appointment</p>
+          <h2 className="text-xl font-bold text-white mt-2">Dr. Meera Kapoor • Cardiology</h2>
+          <p className="text-sm text-slate-300 mt-1">Thursday, 19 Nov at 11:30 AM • City Care Clinic, Lucknow</p>
+          <p className="text-xs text-indigo-200 mt-3">Email reminder scheduled for you and Ramesh, 24 hours before.</p>
+        </section>
+        <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Shared care access</p>
+          <h2 className="text-xl font-bold text-white mt-2">Family access by passcode</h2>
+          <p className="text-sm text-slate-300 mt-1">Ramesh remains in control of who can see and manage his care plan.</p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <span className="px-3 py-2 rounded-xl bg-slate-800 text-sm text-white">Rahul • Caregiver • Edit</span>
+            <span className="px-3 py-2 rounded-xl bg-slate-800 text-sm text-white">Anita • Family • View</span>
+            <button onClick={() => alert('Demo passcode: 482 916. Share only with a trusted family member.')} className="px-3 py-2 rounded-xl bg-emerald-600 text-sm font-bold text-white">Invite with passcode</button>
+          </div>
+        </section>
+      </div>
+
+      <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div><p className="text-xs uppercase tracking-wide text-amber-300 font-bold">Set up shared care</p><h2 className="text-xl text-white font-bold mt-1">Connect family, choose reminders, add appointments</h2><p className="text-sm text-slate-400 mt-1">Configure the demo flow. You stay in control of access and alerts.</p></div>
+          <button aria-expanded={showCareSetup} onClick={() => setShowCareSetup(value => !value)} className="min-h-12 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold">{showCareSetup ? 'Close setup' : 'Open care setup'}</button>
+        </div>
+        {showCareSetup && <div className="mt-5"><CareSetupPanel /></div>}
+        {!showCareSetup && <p className="text-xs text-slate-500 mt-3">Prototype mode: invites, passcodes, appointments, and email preferences are simulated locally; delivery and authentication are not connected.</p>}
+      </section>
+
       {/* Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
         {[
           { id: 'overview', label: 'Medication Schedule & Adherence' },
+          { id: 'appointments', label: 'Appointments' },
+          { id: 'access', label: 'Family Access' },
           { id: 'pharmacy', label: 'Smart Pharmacy & Auto-Refills (1mg/Apollo)' },
           { id: 'logs', label: 'Live Verification Transcript & Safety Logs' },
           { id: 'insurance', label: 'InsurTech & Hospital Compliance' },
@@ -191,6 +223,28 @@ export const CaregiverMode: React.FC<CaregiverModeProps> = ({
           </button>
         ))}
       </div>
+
+      {activeTab === 'appointments' && (
+        <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div><h3 className="text-xl font-bold text-white">Doctor appointments</h3><p className="text-sm text-slate-400">Shared schedule and reminder status</p></div>
+            <button onClick={() => alert('Appointment added to the shared care calendar.')} className="px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl">+ Add appointment</button>
+          </div>
+          <div className="p-5 rounded-2xl bg-indigo-950/40 border border-indigo-500/30">
+            <h4 className="text-lg font-bold text-white">Dr. Meera Kapoor • Cardiology</h4>
+            <p className="text-slate-300">Thursday, 19 Nov • 11:30 AM • City Care Clinic, Lucknow</p>
+            <p className="text-sm text-indigo-200 mt-2">Email reminders: patient and caregiver, 24 hours before and on appointment morning.</p>
+          </div>
+        </section>
+      )}
+      {activeTab === 'access' && (
+        <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4">
+          <h3 className="text-xl font-bold text-white">People sharing Ramesh&apos;s care</h3>
+          <p className="text-sm text-slate-400">Access uses a personal passcode. The senior decides who can view or change the care plan.</p>
+          {[['Rahul Sharma', 'Primary caregiver', 'Can manage medicines and appointments'], ['Anita Sharma', 'Family member', 'Can view schedule and adherence']].map(([name, role, access]) => <div key={name} className="p-4 rounded-2xl bg-slate-800 flex flex-col sm:flex-row sm:justify-between gap-1"><strong className="text-white">{name} • {role}</strong><span className="text-sm text-slate-300">{access}</span></div>)}
+          <button onClick={() => alert('Demo passcode: 482 916. This prototype does not create real accounts.')} className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">Create family passcode</button>
+        </section>
+      )}
 
       {/* Tab 1: Overview (Medications) */}
       {activeTab === 'overview' && (

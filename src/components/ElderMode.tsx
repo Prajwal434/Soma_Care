@@ -47,6 +47,8 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 
   useEffect(() => {
     SpeechService.init();
+    const welcomeTimer = window.setTimeout(() => handleSpeak(aiSpeechResponse), 700);
+    return () => window.clearTimeout(welcomeTimer);
   }, []);
 
   const handleSpeak = (text: string) => {
@@ -239,7 +241,7 @@ export const ElderMode: React.FC<ElderModeProps> = ({
               : 'bg-slate-800 text-slate-300 border border-slate-700'
           }`}>
             <Sparkles className="w-5 h-5 text-amber-400" />
-            {isListening ? "Listening to Babuji..." : isSpeaking ? "Soma Care is talking..." : "Ready: Tap the big circle and speak naturally"}
+            {isListening ? "Listening to Babuji..." : isSpeaking ? "Soma Care is talking..." : "Your reminder is ready. Use a button below or talk to me."}
           </span>
         </div>
 
@@ -274,30 +276,30 @@ export const ElderMode: React.FC<ElderModeProps> = ({
 
         {/* 1-Tap Voice Simulation Chips (Elderly Friendly or Presentation Fail-safe) */}
         <div className="mt-6 pt-6 border-t border-slate-800 w-full max-w-2xl">
-          <p className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider text-center">
-            Or tap a common phrase:
+          <p className="text-base font-bold text-white mb-3 text-center">
+            What would you like to do?
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               onClick={() => handleManualAction("I took my sugar tablet with breakfast")}
               className="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl text-base font-semibold flex items-center justify-between text-left transition-all active:scale-98"
             >
-              <span>✅ &ldquo;I took my medicine&rdquo;</span>
-              <span className="text-xs text-emerald-400 font-normal">Dose Check</span>
+              <span>✅ I took my medicine</span>
+              <span className="text-sm text-emerald-400 font-normal">Mark dose taken</span>
             </button>
             <button
               onClick={() => handleManualAction("Which medicine should I take right now? The white one?")}
               className="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl text-base font-semibold flex items-center justify-between text-left transition-all active:scale-98"
             >
-              <span>❓ &ldquo;Which tablet now?&rdquo;</span>
-              <span className="text-xs text-amber-400 font-normal">Clarify</span>
+              <span>❓ What medicine is due?</span>
+              <span className="text-sm text-amber-400 font-normal">Hear the next dose</span>
             </button>
             <button
               onClick={() => handleManualAction("Wait, I forgot if I took my sugar tablet. I am taking another one.")}
               className="px-4 py-3 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-500/40 text-rose-200 rounded-xl text-base font-semibold flex items-center justify-between text-left transition-all active:scale-98"
             >
-              <span>⚠️ &ldquo;Taking my pill again&rdquo;</span>
-              <span className="text-xs text-rose-400 font-normal">Double Dose Test</span>
+              <span>⚠️ I may have taken this already</span>
+              <span className="text-sm text-rose-400 font-normal">Check before taking</span>
             </button>
             <button
               onClick={() => setIsScannerOpen(true)}
@@ -305,9 +307,9 @@ export const ElderMode: React.FC<ElderModeProps> = ({
             >
               <span className="flex items-center gap-2">
                 <Camera className="w-5 h-5 text-amber-400" />
-                &ldquo;Scan Medicine Strip&rdquo;
+                Check my medicine
               </span>
-              <span className="text-xs text-amber-400 font-normal">Vision AI</span>
+              <span className="text-sm text-amber-400 font-normal">Use camera</span>
             </button>
           </div>
         </div>
@@ -427,6 +429,27 @@ export const ElderMode: React.FC<ElderModeProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Appointments and family coordination */}
+      <section className="bg-indigo-950/40 border-2 border-indigo-500/30 rounded-3xl p-6 sm:p-8 space-y-4" aria-labelledby="appointments-heading">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-indigo-300">YOUR HEALTH VISITS</p>
+            <h2 id="appointments-heading" className="text-2xl font-extrabold text-white">Upcoming doctor appointment</h2>
+          </div>
+          <span className="px-4 py-2 rounded-xl bg-indigo-500/20 text-indigo-200 text-base font-bold">Thursday, 19 Nov • 11:30 AM</span>
+        </div>
+        <div className="bg-slate-900/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-white">Dr. Meera Kapoor</h3>
+            <p className="text-base text-slate-300">Cardiology • City Care Clinic, Lucknow</p>
+            <p className="text-sm text-slate-400 mt-1">Rahul has been notified. Bring your medicine list.</p>
+          </div>
+          <button onClick={() => handleSpeak('Your next doctor appointment is Thursday, November 19 at 11:30 in the morning with Dr. Meera Kapoor at City Care Clinic. Rahul has been notified.')} className="min-h-14 px-5 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-base font-bold flex items-center justify-center gap-2">
+            <Volume2 className="w-5 h-5" /> Hear appointment
+          </button>
+        </div>
+      </section>
 
       {/* Multimodal Vision Scanner Modal */}
       <PillScannerModal

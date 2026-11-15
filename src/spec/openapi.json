@@ -129,6 +129,69 @@
           "200": { "description": "Alert dispatched via WhatsApp Business API" }
         }
       }
+    },
+    "/care/access-invites": {
+      "post": {
+        "summary": "Prepare a demo family invitation with role-based access and passcode",
+        "description": "Prototype contract only. No account, credential, or secure session is created by the current frontend.",
+        "operationId": "prepareCareAccessInvite",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CareAccessInviteRequest" } } } },
+        "responses": {
+          "201": { "description": "Demo invite prepared", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CareAccessInviteResponse" } } } },
+          "400": { "description": "Invalid email, role, or passcode configuration" }
+        }
+      }
+    },
+    "/care/reminder-preferences": {
+      "put": {
+        "summary": "Save preferred email recipients and care reminder types",
+        "description": "Prototype contract only. Saving preferences does not deliver email in the current demo.",
+        "operationId": "saveReminderPreferences",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReminderPreferences" } } } },
+        "responses": {
+          "200": { "description": "Demo reminder preferences saved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReminderPreferencesResponse" } } } },
+          "400": { "description": "Invalid email address or reminder configuration" }
+        }
+      }
+    },
+    "/care/appointments": {
+      "post": {
+        "summary": "Add an appointment to the shared care schedule",
+        "description": "Prototype contract only. Appointment reminders are represented in the UI; no email is sent.",
+        "operationId": "createCareAppointment",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CareAppointmentRequest" } } } },
+        "responses": {
+          "201": { "description": "Appointment added to demo schedule", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CareAppointment" } } } },
+          "400": { "description": "Required appointment details are invalid or missing" }
+        }
+      },
+      "get": {
+        "summary": "List appointments in the shared care schedule",
+        "operationId": "listCareAppointments",
+        "responses": { "200": { "description": "Appointments visible to the current demo profile", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CareAppointment" } } } } } }
+      }
+    },
+    "/care/medications": {
+      "get": {
+        "summary": "List medication schedules and adherence status for a care profile",
+        "operationId": "listCareMedications",
+        "responses": { "200": { "description": "Shared medication schedule", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CareMedication" } } } } } }
+      },
+      "post": {
+        "summary": "Add a medication schedule to a care profile",
+        "operationId": "createCareMedication",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CareMedication" } } } },
+        "responses": { "201": { "description": "Medication schedule added to demo profile" }, "400": { "description": "Medication schedule is invalid" } }
+      }
+    },
+    "/care/medications/{medicationId}": {
+      "patch": {
+        "summary": "Update a medication schedule or adherence state",
+        "operationId": "updateCareMedication",
+        "parameters": [{ "name": "medicationId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CareMedicationUpdate" } } } },
+        "responses": { "200": { "description": "Medication schedule updated" }, "404": { "description": "Medication was not found" } }
+      }
     }
   },
   "components": {
@@ -175,6 +238,89 @@
           "seniorId": { "type": "string" },
           "idempotencyKey": { "type": "string" },
           "authorizedBy": { "type": "string", "enum": ["VOICE_SENIOR", "MANUAL_CAREGIVER", "AUTO_REFILL_RULE"] }
+        }
+      },
+      "CareAccessInviteRequest": {
+        "type": "object",
+        "required": ["seniorId", "email", "role"],
+        "properties": {
+          "seniorId": { "type": "string", "example": "SNR-74-RAMESH" },
+          "email": { "type": "string", "format": "email", "example": "rahul@example.com" },
+          "role": { "type": "string", "enum": ["VIEWER", "CAREGIVER"] },
+          "passcodeDelivery": { "type": "string", "enum": ["SHOW_IN_DEMO", "EMAIL_INVITE"], "default": "SHOW_IN_DEMO" }
+        }
+      },
+      "CareAccessInviteResponse": {
+        "type": "object",
+        "required": ["status", "role", "demoOnly"],
+        "properties": {
+          "status": { "type": "string", "enum": ["INVITE_READY"] },
+          "role": { "type": "string", "enum": ["VIEWER", "CAREGIVER"] },
+          "passcode": { "type": "string", "pattern": "^[0-9]{6}$" },
+          "demoOnly": { "type": "boolean", "const": true }
+        }
+      },
+      "ReminderPreferences": {
+        "type": "object",
+        "required": ["seniorId", "email", "channels", "reminderLeadMinutes"],
+        "properties": {
+          "seniorId": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "channels": { "type": "array", "items": { "type": "string", "enum": ["UPCOMING_DOSE", "MISSED_DOSE", "APPOINTMENT"] }, "uniqueItems": true },
+          "reminderLeadMinutes": { "type": "integer", "enum": [15, 30, 60] },
+          "demoOnly": { "type": "boolean", "const": true }
+        }
+      },
+      "ReminderPreferencesResponse": {
+        "type": "object",
+        "required": ["status", "emailDeliveryConnected"],
+        "properties": {
+          "status": { "type": "string", "enum": ["PREFERENCES_SAVED"] },
+          "emailDeliveryConnected": { "type": "boolean", "const": false },
+          "preview": { "type": "string" }
+        }
+      },
+      "CareAppointmentRequest": {
+        "type": "object",
+        "required": ["seniorId", "clinician", "startsAt", "location"],
+        "properties": {
+          "seniorId": { "type": "string" },
+          "clinician": { "type": "string", "minLength": 1 },
+          "specialty": { "type": "string" },
+          "startsAt": { "type": "string", "format": "date-time" },
+          "location": { "type": "string", "minLength": 1 },
+          "notifyEmails": { "type": "array", "items": { "type": "string", "format": "email" } }
+        }
+      },
+      "CareAppointment": {
+        "allOf": [
+          { "$ref": "#/components/schemas/CareAppointmentRequest" },
+          { "type": "object", "required": ["id", "reminderStatus"], "properties": { "id": { "type": "string" }, "reminderStatus": { "type": "string", "enum": ["DEMO_PREVIEW", "NOT_CONFIGURED"] } } }
+        ]
+      },
+      "CareMedication": {
+        "type": "object",
+        "required": ["id", "seniorId", "name", "dosage", "scheduledTime", "instructions"],
+        "properties": {
+          "id": { "type": "string" },
+          "seniorId": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 },
+          "dosage": { "type": "string" },
+          "scheduledTime": { "type": "string", "example": "09:00" },
+          "instructions": { "type": "string" },
+          "takenToday": { "type": "boolean" },
+          "takenAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CareMedicationUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "dosage": { "type": "string" },
+          "scheduledTime": { "type": "string" },
+          "instructions": { "type": "string" },
+          "takenToday": { "type": "boolean" },
+          "takenAt": { "type": "string", "format": "date-time" }
         }
       }
     }
