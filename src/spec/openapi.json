@@ -1,0 +1,182 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SomaCare Core Platform & IoT Camera Engine API",
+    "version": "1.0.0",
+    "description": "Standardized OpenAPI specification for SomaCare: Voice NLP, SomaBox ESP32-CAM IoT Telemetry (BLE/Wi-Fi), Multimodal Pill OCR, Caregiver Emergency Escalation, and Pharmacy Fulfillment Network."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Local Edge Gateway"
+    }
+  ],
+  "paths": {
+    "/somabox/telemetry": {
+      "post": {
+        "summary": "Ingest real-time micro-camera telemetry from SomaBox (BLE/Wi-Fi)",
+        "operationId": "ingestCameraTelemetry",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CameraTelemetryPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Telemetry processed and evaluated by edge computer vision neural net",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraTelemetryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed sensor payload or corrupted camera frame"
+          },
+          "429": {
+            "description": "Rate limit exceeded (Maximum 30 fps stream)"
+          }
+        }
+      }
+    },
+    "/voice/interpret": {
+      "post": {
+        "summary": "Process senior spoken audio transcript with clinical safety checks",
+        "operationId": "processSeniorVoice",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["transcript", "seniorId"],
+                "properties": {
+                  "transcript": { "type": "string", "example": "I took my morning pill" },
+                  "seniorId": { "type": "string", "example": "SNR-74-RAMESH" },
+                  "activePromptMedId": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conversational reply with safety actions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceProcessingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pharmacy/refill": {
+      "post": {
+        "summary": "Dispatch automated pharmacy reorder to Tata 1mg or Apollo",
+        "operationId": "createPharmacyRefill",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PharmacyRefillRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order dispatched and tracking number generated"
+          },
+          "409": {
+            "description": "Duplicate order blocked by rate limiter idempotency key"
+          }
+        }
+      }
+    },
+    "/caregiver/escalate": {
+      "post": {
+        "summary": "Trigger high-priority emergency WhatsApp & voice dispatch",
+        "operationId": "escalateAlert",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["severity", "eventType", "message"],
+                "properties": {
+                  "severity": { "type": "string", "enum": ["CRITICAL", "WARNING", "INFO"] },
+                  "eventType": { "type": "string", "enum": ["DOUBLE_DOSE_ATTEMPT", "WRONG_SLOT", "SYMPTOM_ALERT", "SOS_BUTTON"] },
+                  "message": { "type": "string" },
+                  "evidenceSnapshotBase64": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Alert dispatched via WhatsApp Business API" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CameraTelemetryPayload": {
+        "type": "object",
+        "required": ["deviceId", "connectionProtocol", "activeSlot", "pillsDetectedOnPalm"],
+        "properties": {
+          "deviceId": { "type": "string", "example": "SOMABOX-ESP32-0941" },
+          "connectionProtocol": { "type": "string", "enum": ["BLE_GATT", "WIFI_WEBSOCKET", "WIFI_MJPEG"] },
+          "activeSlot": { "type": "string", "enum": ["SLOT_1_MORNING", "SLOT_2_AFTERNOON", "SLOT_3_EVENING", "SLOT_4_NIGHT", "ALL_CLOSED"] },
+          "pillsDetectedOnPalm": { "type": "integer", "minimum": 0, "maximum": 10 },
+          "handToMouthDetected": { "type": "boolean" },
+          "batteryLevel": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "signalRssi": { "type": "integer" }
+        }
+      },
+      "CameraTelemetryResponse": {
+        "type": "object",
+        "required": ["status", "isSafe", "actionRequired"],
+        "properties": {
+          "status": { "type": "string", "enum": ["SAFE", "HAZARD_OVERDOSE", "HAZARD_WRONG_SLOT", "MONITORING"] },
+          "isSafe": { "type": "boolean" },
+          "actionRequired": { "type": "string" },
+          "spokenAudioCommand": { "type": "string", "nullable": true },
+          "escalationSent": { "type": "boolean" }
+        }
+      },
+      "VoiceProcessingResponse": {
+        "type": "object",
+        "required": ["spokenText", "displayText", "actionTaken"],
+        "properties": {
+          "spokenText": { "type": "string" },
+          "displayText": { "type": "string" },
+          "actionTaken": { "type": "string" },
+          "safetyInterceptTriggered": { "type": "boolean" }
+        }
+      },
+      "PharmacyRefillRequest": {
+        "type": "object",
+        "required": ["medicationId", "seniorId", "idempotencyKey"],
+        "properties": {
+          "medicationId": { "type": "string" },
+          "seniorId": { "type": "string" },
+          "idempotencyKey": { "type": "string" },
+          "authorizedBy": { "type": "string", "enum": ["VOICE_SENIOR", "MANUAL_CAREGIVER", "AUTO_REFILL_RULE"] }
+        }
+      }
+    }
+  }
+}

@@ -1,101 +1,208 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState } from 'react';
+import { Navbar } from '../components/Navbar';
+import { ElderMode } from '../components/ElderMode';
+import { SmartBoxSentinel } from '../components/SmartBoxSentinel';
+import { CaregiverMode } from '../components/CaregiverMode';
+import { DemoControlBar } from '../components/DemoControlBar';
+import { PitchModal } from '../components/PitchModal';
+import { SystemAuditModal } from '../components/SystemAuditModal';
+import { 
+  initialSeniorProfile, 
+  initialMedications, 
+  initialLogs, 
+  initialOrders 
+} from '../data/mockData';
+import { Medication, AdherenceLog, PharmacyOrder } from '../types';
+import { SpeechService } from '../utils/speech';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [currentView, setCurrentView] = useState<'elder' | 'somabox' | 'caregiver'>('elder');
+  const [profile, setProfile] = useState(initialSeniorProfile);
+  const [medications, setMedications] = useState<Medication[]>(initialMedications);
+  const [logs, setLogs] = useState<AdherenceLog[]>(initialLogs);
+  const [orders, setOrders] = useState<PharmacyOrder[]>(initialOrders);
+  const [pitchOpen, setPitchOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+  const handleAddLog = (newLog: AdherenceLog) => {
+    setLogs(prev => [newLog, ...prev]);
+  };
+
+  const handleAddOrder = (newOrder: PharmacyOrder) => {
+    setOrders(prev => [newOrder, ...prev]);
+  };
+
+  const handleTriggerRefillFromCaregiver = (medId: string) => {
+    const med = medications.find(m => m.id === medId);
+    if (!med) return;
+
+    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newOrder: PharmacyOrder = {
+      id: orderId,
+      medicationName: `${med.name} (Pack of 30)`,
+      quantity: '1 Box (30 Tablets)',
+      price: med.price,
+      orderedAt: 'Just now',
+      status: 'Processing',
+      partner: med.pharmacyPartner as PharmacyOrder['partner'],
+      paidBy: 'Triggered by Caregiver (Rahul Sharma - Auto Pay)',
+    };
+
+    const newLog: AdherenceLog = {
+      id: `log-${Date.now()}`,
+      timestamp: 'Just now',
+      medicationName: `${med.name} Refill Triggered`,
+      status: 'refill_ordered',
+      notes: `Caregiver manually approved 30-day refill via ${med.pharmacyPartner}. Delivery scheduled for Lucknow address.`,
+      verificationMethod: 'manual',
+      moodDetected: 'calm',
+    };
+
+    setOrders(prev => [newOrder, ...prev]);
+    setLogs(prev => [newLog, ...prev]);
+
+    // Update remaining pills back to 30
+    setMedications(prev => prev.map(m => 
+      m.id === medId ? { ...m, remainingPills: m.totalPills } : m
+    ));
+
+    alert(`Order ${orderId} dispatched to ${med.pharmacyPartner} for ₹${med.price}!`);
+  };
+
+  const handleRunScenario = (scenario: 'morning' | 'vision' | 'somabox' | 'doubledose' | 'refill') => {
+    SpeechService.stopSpeaking();
+
+    if (scenario === 'morning') {
+      setCurrentView('elder');
+      SpeechService.speak(
+        "Namaste Babuji! It is 10:00 AM. Time for your morning sugar tablet after breakfast. Did you take it?"
+      );
+    } else if (scenario === 'vision') {
+      setCurrentView('elder');
+      SpeechService.speak(
+        "Hold the medicine strip up to the camera screen so I can verify the name and dosage for you."
+      );
+    } else if (scenario === 'somabox') {
+      setCurrentView('somabox');
+      SpeechService.speak(
+        "SomaBox Ambient Sentinel active. Monitoring physical medicine tray compartments and hand actions."
+      );
+    } else if (scenario === 'doubledose') {
+      setCurrentView('elder');
+      const med = medications[0];
+      const newLog: AdherenceLog = {
+        id: `log-${Date.now()}`,
+        timestamp: 'Just now',
+        medicationName: `${med.name} (Double-Dose Intercept)`,
+        status: 'warning',
+        notes: `CRITICAL SAFETY INTERCEPT: Babuji attempted to take ${med.name} again. Intercepted by voice AI. Caregiver notified.`,
+        verificationMethod: 'voice',
+        moodDetected: 'confused',
+      };
+      setLogs(prev => [newLog, ...prev]);
+      SpeechService.speak(
+        `Wait, Babuji! Please do not take that pill! You already took your morning ${med.name} at 9:12 AM. Taking another can cause severe hypoglycemia. Please rest!`
+      );
+    } else if (scenario === 'refill') {
+      setCurrentView('elder');
+      const med = medications[0];
+      const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+      const newOrder: PharmacyOrder = {
+        id: orderId,
+        medicationName: `${med.name} (30 Tablets)`,
+        quantity: '1 Strip',
+        price: med.price,
+        orderedAt: 'Just now',
+        status: 'Processing',
+        partner: 'Tata 1mg',
+        paidBy: 'Voice Authorized by Senior • Billed to Rahul Sharma',
+      };
+      const newLog: AdherenceLog = {
+        id: `log-${Date.now()}`,
+        timestamp: 'Just now',
+        medicationName: `${med.name} Voice Reorder`,
+        status: 'refill_ordered',
+        notes: `Voice-authorized reorder dispatched via Tata 1mg for ₹${med.price}. Caregiver card billed.`,
+        verificationMethod: 'voice',
+        moodDetected: 'cheerful',
+      };
+      setOrders(prev => [newOrder, ...prev]);
+      setLogs(prev => [newLog, ...prev]);
+      SpeechService.speak(
+        `Order confirmed, Babuji! I have placed an order for ${med.name} through Tata 1mg for rupees 245. A WhatsApp update has been sent to Rahul. Delivery tomorrow by 2 PM.`
+      );
+    }
+  };
+
+  const handleResetData = () => {
+    setProfile(initialSeniorProfile);
+    setMedications(initialMedications);
+    setLogs(initialLogs);
+    setOrders(initialOrders);
+    SpeechService.stopSpeaking();
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+      {/* Top Navbar */}
+      <Navbar
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        onOpenPitchGuide={() => setPitchOpen(true)}
+        onOpenSystemAudit={() => setAuditOpen(true)}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-1 p-4 sm:p-6 md:p-8">
+        {currentView === 'elder' ? (
+          <ElderMode
+            profile={profile}
+            medications={medications}
+            logs={logs}
+            orders={orders}
+            onUpdateMedications={setMedications}
+            onAddLog={handleAddLog}
+            onAddOrder={handleAddOrder}
+          />
+        ) : currentView === 'somabox' ? (
+          <SmartBoxSentinel
+            profile={profile}
+            medications={medications}
+            onAddLog={handleAddLog}
+          />
+        ) : (
+          <CaregiverMode
+            profile={profile}
+            medications={medications}
+            logs={logs}
+            orders={orders}
+            onTriggerRefill={handleTriggerRefillFromCaregiver}
+            onAddPrescription={() => {
+              alert('Prescription scanner: Upload doctor Rx photo to auto-extract schedules into Caregiver database.');
+            }}
+          />
+        )}
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+      {/* Demo Floating Control Bar (Hackathon Superpower) */}
+      <DemoControlBar
+        onRunScenario={handleRunScenario}
+        onReset={handleResetData}
+      />
+
+      {/* Business Pitch Modal */}
+      <PitchModal
+        isOpen={pitchOpen}
+        onClose={() => setPitchOpen(false)}
+      />
+
+      {/* System Engineering, Security & OpenAPI Audit Modal */}
+      <SystemAuditModal
+        isOpen={auditOpen}
+        onClose={() => setAuditOpen(false)}
+      />
     </div>
   );
 }
